@@ -1,10 +1,14 @@
-# Skin Shortcuts - 1.1.0
+# Skin Shortcuts - 2.1.0
 **Python 3 compatible only NO Python 2 support. IS NOT BACKWARDS COMPATIBLE!!**
 
 script.skinshortcuts was written with the intention of making user customizable shortcuts on the home page easier for skinners.
 
 
 ## What's New for Skinners
+#### Version 2.1.0 - git version
+
+- Kodi v21 support
+- Kodi v22 support
 
 #### Version 1.1.0 - git version
 
@@ -19,7 +23,7 @@ script.skinshortcuts was written with the intention of making user customizable 
 
 - Huge thanks to Ronie, whose code for listing plugins is used in this script
 - Equally huge thanks to Ronie and 'Black, for their favourites code used in this script
-- More huge thanks to BigNoid, for the ability to edit shortcuts, and Jeroen, for so many suggestions each of which just made the script better.
+- More huge thanks to BigNoid, for the ability to edit shortcuts, 和 Jeroen, for so many suggestions each of which just made the script better.
 - The thanks remain absolutely huge to the translaters on Transifex for localising the script
 - There almost isn't enough thanks for schimi2k for the icon and fanart
 - Everyone who has contributed even one idea or line of code
