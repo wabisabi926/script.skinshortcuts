@@ -1,3 +1,6 @@
+v2.1.0
+- Kodi v19 Matrix + Python 3 compatibility
+
 v1.0.13
 - Fix for context menu add-on
 - Remove SuperFavourites workaround
