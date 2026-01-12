@@ -3,19 +3,19 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: translations@kodi.tv\n"
 "POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"PO-Revision-Date: 2026-01-12 20:30+0000\n"
+"PO-Revision-Date: 2026-01-12 21:05+0800\n"
 "Last-Translator: wabisabi926\n"
 "Language-Team: Chinese (China) <https://kodi.weblate.cloud/projects/kodi-add-ons-scripts/script-skinshortcuts/zh_cn/>\n"
-"Language: zh_cn\n"
+"Language: zh_CN\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 4.8.1\n"
+"X-Generator: Poedit 3.5\n"
 
 msgctxt "Addon Description"
 msgid "Add-on for skins to provide simple managing and listing of user shortcuts (requires skin support)"
-msgstr "皮肤加载项，提供简单的用户快捷方式管理和列表（需要皮肤支持）"
+msgstr "皮肤插件，提供简易的用户快捷方式管理和列表功能（需皮肤支持）"
 
 msgctxt "#32000"
 msgid "Add"
@@ -43,15 +43,15 @@ msgstr "音乐播放列表"
 
 msgctxt "#32006"
 msgid "Favourite"
-msgstr "收藏"
+msgstr "收藏夹"
 
 msgctxt "#32007"
 msgid "Add-On"
-msgstr "扩展功能"
+msgstr "插件"
 
 msgctxt "#32008"
 msgid "Mixed Playlist"
-msgstr "混合的播放列表"
+msgstr "混合播放列表"
 
 msgctxt "#32009"
 msgid "Program"
@@ -127,15 +127,15 @@ msgstr "设置缩略图"
 
 msgctxt "#32027"
 msgid "Change action"
-msgstr "自定义动作"
+msgstr "更改操作"
 
 msgctxt "#32028"
 msgid "Restore menu items"
-msgstr "恢复菜单项目"
+msgstr "恢复菜单项"
 
 msgctxt "#32029"
 msgid "Common"
-msgstr "命令"
+msgstr "通用"
 
 msgctxt "#32030"
 msgid "Video Library"
@@ -155,15 +155,15 @@ msgstr "弹出托盘"
 
 msgctxt "#32034"
 msgid "Common menu item"
-msgstr "通用菜单项目"
+msgstr "通用菜单项"
 
 msgctxt "#32035"
 msgid "Choose which items to display on the Main Menu"
-msgstr "选择哪些项目要显示在主菜单上"
+msgstr "选择要在主菜单上显示的项目"
 
 msgctxt "#32036"
 msgid "Choose shortcuts for %s"
-msgstr "指定快捷方式给 %s"
+msgstr "为 %s 选择快捷方式"
 
 msgctxt "#32037"
 msgid "Reset all menu items"
@@ -175,7 +175,7 @@ msgstr "您确定要将所有菜单项重置为默认值吗？"
 
 msgctxt "#32039"
 msgid "Pick widget for %s"
-msgstr "挑选桌面小组件给 %s"
+msgstr "为 %s 选择小组件"
 
 msgctxt "#32040"
 msgid "Playlist"
@@ -183,7 +183,7 @@ msgstr "播放列表"
 
 msgctxt "#32041"
 msgid "Action"
-msgstr "动作"
+msgstr "操作"
 
 msgctxt "#32042"
 msgid "Unknown video node"
@@ -191,11 +191,11 @@ msgstr "未知视频节点"
 
 msgctxt "#32043"
 msgid "Choose shortcut category"
-msgstr "选择快捷方式类别"
+msgstr "选择快捷方式分类"
 
 msgctxt "#32044"
 msgid "Select widget"
-msgstr "选择桌面小组件"
+msgstr "选择小组件"
 
 msgctxt "#32045"
 msgid "Select background"
@@ -223,11 +223,11 @@ msgstr "默认"
 
 msgctxt "#32051"
 msgid "Single image"
-msgstr "单一图像"
+msgstr "单张图片"
 
 msgctxt "#32052"
 msgid "Multi-image"
-msgstr "多个图像"
+msgstr "多张图片"
 
 msgctxt "#32053"
 msgid "None"
@@ -239,11 +239,11 @@ msgstr "Kodi 命令"
 
 msgctxt "#32055"
 msgid "Clean video library"
-msgstr "清空视频库"
+msgstr "清理视频库"
 
 msgctxt "#32056"
 msgid "Clean audio library"
-msgstr "清空音频库"
+msgstr "清理音频库"
 
 msgctxt "#32057"
 msgid "Kodi Commands"
@@ -251,7 +251,7 @@ msgstr "Kodi 命令"
 
 msgctxt "#32058"
 msgid "Create menu item to here"
-msgstr "在此创建菜单项"
+msgstr "在此处创建菜单项"
 
 msgctxt "#32059"
 msgid "Skin Playlist"
@@ -259,7 +259,7 @@ msgstr "皮肤播放列表"
 
 msgctxt "#32060"
 msgid "What do you want to do with the playlist?"
-msgstr "您想如何处理播放列表？"
+msgstr "您想如何处理该播放列表？"
 
 msgctxt "#32061"
 msgid "Display"
@@ -275,11 +275,11 @@ msgstr "获取目录列表..."
 
 msgctxt "#32064"
 msgid "No available items"
-msgstr "没有可用项目"
+msgstr "无可用项"
 
 msgctxt "#32065"
 msgid "There are no available items to choose from for the category that you choose."
-msgstr "对于您选择的类别，没有可用的项目可供选择。"
+msgstr "您所选的分类下暂无可用项。"
 
 msgctxt "#32066"
 msgid "Last TV channel"
@@ -287,11 +287,11 @@ msgstr "最近观看的电视频道"
 
 msgctxt "#32067"
 msgid "Last radio channel"
-msgstr "最近观看的广播频道"
+msgstr "最近收听的广播频道"
 
 msgctxt "#32068"
 msgid "Last channel"
-msgstr "最近观看的频道"
+msgstr "最近使用的频道"
 
 msgctxt "#32069"
 msgid "Video Source"
@@ -319,7 +319,7 @@ msgstr "媒体库源"
 
 msgctxt "#32075"
 msgid "Sources"
-msgstr "来源"
+msgstr "源"
 
 msgctxt "#32076"
 msgid "TV Channel"
@@ -331,11 +331,11 @@ msgstr "广播频道"
 
 msgctxt "#32078"
 msgid "Display..."
-msgstr "显示……"
+msgstr "显示…"
 
 msgctxt "#32079"
 msgid "Files view"
-msgstr "文档视图"
+msgstr "文件视图"
 
 msgctxt "#32080"
 msgid "Edit %s Submenu"
@@ -343,27 +343,27 @@ msgstr "编辑 %s 子菜单"
 
 msgctxt "#32081"
 msgid "Movies not in this source"
-msgstr "不在此源中的电影"
+msgstr "此源中未包含的电影"
 
 msgctxt "#32082"
 msgid "TV Shows not in this source"
-msgstr "不在此来源的电视节目"
+msgstr "此源中未包含的电视节目"
 
 msgctxt "#32083"
 msgid "Music Videos not in this source"
-msgstr "不在此来源的音乐视频"
+msgstr "此源中未包含的音乐视频"
 
 msgctxt "#32084"
 msgid "Songs not in this source"
-msgstr "不在此来源的歌曲"
+msgstr "此源中未包含的歌曲"
 
 msgctxt "#32085"
 msgid "Albums not in this source"
-msgstr "不在此来源的专辑"
+msgstr "此源中未包含的专辑"
 
 msgctxt "#32086"
 msgid "Mixed content not in this source"
-msgstr "不在此来源的混合内容"
+msgstr "此源中未包含的混合内容"
 
 msgctxt "#32087"
 msgid "Radio"
@@ -375,15 +375,15 @@ msgstr "频道"
 
 msgctxt "#32089"
 msgid "Picture Source"
-msgstr "图片来源"
+msgstr "图片源"
 
 msgctxt "#32090"
 msgid "The item has been added to the menu"
-msgstr "该项目已添加到菜单中"
+msgstr "该菜单项已添加到菜单中"
 
 msgctxt "#32091"
 msgid "Unable to add item to the menu. Please check log for errors."
-msgstr "无法将项目添加到菜单。请检查日志中的错误。"
+msgstr "无法将菜单项添加到菜单。请查看日志了解错误详情。"
 
 msgctxt "#32092"
 msgid "Unable to build menu."
@@ -395,7 +395,7 @@ msgstr "上传调试日志？"
 
 msgctxt "#32094"
 msgid "Install Kodi Log Uploader add-on to easily provide a debug log."
-msgstr "安装 Kodi Log Uploader 插件，轻松上传调试日志。"
+msgstr "安装 Kodi 日志上传插件，可便捷上传调试日志。"
 
 msgctxt "#32095"
 msgid "Choose default action for menu item"
@@ -403,7 +403,7 @@ msgstr "选择菜单项的默认操作"
 
 msgctxt "#32096"
 msgid "Browse..."
-msgstr "浏览……"
+msgstr "浏览…"
 
 msgctxt "#32097"
 msgid "Unable to save menu"
@@ -411,7 +411,7 @@ msgstr "无法保存菜单"
 
 msgctxt "#32098"
 msgid "Writing menu..."
-msgstr "生成菜单中……"
+msgstr "正在写入菜单…"
 
 msgctxt "#32099"
 msgid "Widget"
@@ -419,7 +419,7 @@ msgstr "小组件"
 
 msgctxt "#32100"
 msgid "Use as widget"
-msgstr "作为小组件"
+msgstr "用作小组件"
 
 msgctxt "#32101"
 msgid "Choose property"
@@ -439,11 +439,11 @@ msgstr "重置为皮肤默认值"
 
 msgctxt "#32105"
 msgid "There are no menu items to restore for this menu"
-msgstr "此菜单没有要恢复的菜单项"
+msgstr "此菜单暂无可恢复的菜单项"
 
 msgctxt "#32106"
 msgid "Install widget provider"
-msgstr "安装小组件提供程序"
+msgstr "安装小组件提供方"
 
 msgctxt "#32107"
 msgid "Enable default widgets"
@@ -455,7 +455,7 @@ msgstr "派对模式（音乐视频）"
 
 msgctxt "#32109"
 msgid "No menus from compatible skins found to import"
-msgstr "找不到可导入的兼容外观菜单"
+msgstr "未找到可导入的兼容皮肤菜单"
 
 msgctxt "#32110"
 msgid "Import menu from skin"
@@ -475,15 +475,15 @@ msgstr "主菜单上的新项目（自动填充子菜单项）"
 
 msgctxt "#32114"
 msgid "Where should menu item be created"
-msgstr "菜单项应该在哪里创建"
+msgstr "菜单项应创建在何处"
 
 msgctxt "#32115"
 msgid "Unable to get directory listings[CR][CR]See log for details"
-msgstr "无法获取目录列表[CR][CR]查看日志以获取详细信息"
+msgstr "无法获取目录列表[CR][CR]请查看日志了解详情"
 
 msgctxt "#32116"
 msgid "The skin you are using does not support adding items directly to the main menu"
-msgstr "您使用的皮肤不支持将项目直接添加到主菜单"
+msgstr "您当前使用的皮肤不支持将项目直接添加到主菜单"
 
 msgctxt "#32117"
 msgid "Disable shortcut"
@@ -499,11 +499,11 @@ msgstr "默认小组件"
 
 msgctxt "#32120"
 msgid "Never hide PVR shortcuts"
-msgstr "切勿隐藏 PVR 快捷方式"
+msgstr "永不隐藏 PVR 快捷方式"
 
 msgctxt "#32121"
 msgid "Share menu between compatible skins"
-msgstr "在兼容的皮肤之间共享菜单"
+msgstr "在兼容皮肤间共享菜单"
 
 msgctxt "#32122"
 msgid "Enable debug logging"
@@ -515,32 +515,4 @@ msgstr "游戏"
 
 msgctxt "#32124"
 msgid "This addon is for skin developers, and requires skin support"
-msgstr "该插件是给皮肤开发者的，需要皮肤支持"
-
-#~ msgctxt "#32024"
-#~ msgid "Custom shortcut"
-#~ msgstr "自定义快捷方式"
-
-#~ msgctxt "#32028"
-#~ msgid "Reset shortcuts"
-#~ msgstr "重置快捷方式图标"
-
-#~ msgctxt "#32034"
-#~ msgid "Common Shortcut"
-#~ msgstr "命令快捷方式"
-
-#~ msgctxt "#32037"
-#~ msgid "Reset all shortcuts"
-#~ msgstr "重置所有快捷方式"
-
-#~ msgctxt "#32038"
-#~ msgid "Are you sure you want to reset all shortcuts back to default?"
-#~ msgstr "您确定要重置所有快捷方式为默认设置吗？"
-
-#~ msgctxt "#32048"
-#~ msgid "Choose shortcut"
-#~ msgstr "选择快捷方式"
-
-#~ msgctxt "#32058"
-#~ msgid "Create shortcut to here"
-#~ msgstr "在这里创建快捷方式"
+msgstr "该插件适用于皮肤开发者，且需要皮肤的支持"
