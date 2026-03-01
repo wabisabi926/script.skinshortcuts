@@ -56,13 +56,14 @@ from ..models import (
     Background,
     BackgroundGroup,
     Content,
+    Input,
     MenuItem,
     Shortcut,
     ShortcutGroup,
     Widget,
     WidgetGroup,
 )
-from ..providers import ContentProvider
+from ..providers import ContentProvider, get_browse_provider
 
 if TYPE_CHECKING:
     from ..manager import MenuManager
@@ -101,7 +102,7 @@ class PickersMixin:
             return
 
         menus_path = Path(self.shortcuts_path) / "menus.xml"
-        groups = load_groupings(menus_path)
+        groups = load_groupings(menus_path, self.menu_id)
 
         if not groups:
             xbmcgui.Dialog().notification(
@@ -118,8 +119,11 @@ class PickersMixin:
             if action is None:
                 return
 
-            self.manager.set_label(self.menu_id, item.name, shortcut.label)
-            item.label = shortcut.label
+            result_label = shortcut.label
+            if shortcut.name.startswith("content-placeholder-") and shortcut.type:
+                result_label = shortcut.type
+            self.manager.set_label(self.menu_id, item.name, result_label)
+            item.label = result_label
             self.manager.set_action(self.menu_id, item.name, action)
             item.actions = [Action(action=action)] if action else []
 
@@ -164,7 +168,7 @@ class PickersMixin:
         return shortcut.action_play if result else shortcut.action
 
     def _pick_shortcut(
-        self, groups: list[ShortcutGroup], item_props: dict[str, str]
+        self, groups: list[Shortcut | ShortcutGroup | Content | Input], item_props: dict[str, str]
     ) -> Shortcut | None:
         """Pick a shortcut from groupings using generic hierarchy picker."""
         result = self._pick_from_hierarchy(
@@ -191,7 +195,6 @@ class PickersMixin:
         items: list[WidgetGroup | Widget],
         item_props: dict[str, str],
         slot: str = "",
-        show_get_more: bool = True,
     ) -> Widget | None | Literal[False]:
         """Show widget picker dialog with back navigation.
 
@@ -201,20 +204,11 @@ class PickersMixin:
             items: Widget groups and/or widgets to pick from
             item_props: Current item properties for condition evaluation
             slot: Current widget slot being edited (e.g., "widget", "widget.2")
-            show_get_more: Whether to show "Get More..." option to browse addons
 
         Returns:
             Widget if selected, None if cancelled completely, False if "None" chosen.
         """
         current_widget = item_props.get(slot, "")
-
-        custom_action = None
-        if show_get_more:
-            custom_action = (
-                "Get More...",
-                "DefaultAddonProgram.png",
-                self._browse_widget_addons,
-            )
 
         result = self._pick_from_hierarchy(
             items,
@@ -232,7 +226,6 @@ class PickersMixin:
                 label=label,
                 items=grp_items,
             ),
-            custom_action=custom_action,
         )
 
         return result
@@ -285,15 +278,18 @@ class PickersMixin:
         provider = ContentProvider()
         resolved = provider.resolve(content)
 
+        source = content.source.rstrip("s") if content.source.endswith("s") else content.source
+
         widgets = []
         for item in resolved:
             widget = Widget(
                 name=f"dynamic-{content.source}-{len(widgets)}",
                 label=item.label,
                 path=self._extract_path_from_action(item.action),
-                type=content.target or "",
+                type=item.content_type or content.target or "",
                 target=self._map_target_to_window(content.target),
                 icon=item.icon,
+                source=source,
             )
             widgets.append(widget)
 
@@ -339,70 +335,107 @@ class PickersMixin:
 
         return TARGET_MAP.get(target.lower(), "videos") if target else "videos"
 
-    def _browse_widget_addons(self) -> Widget | None:
-        """Browse installed addons to select a widget path.
+    def _pick_widget_type(self, addon_type: str) -> str | None:
+        """Show dialog to pick widget content type.
 
-        Opens a dialog to browse video/audio/program addons that can be
-        used as widget content sources.
+        Args:
+            addon_type: The addon category (video, audio, executable)
 
         Returns:
-            Widget if addon selected, None if cancelled.
+            Selected widget type string, or None if cancelled.
         """
-        addon_types = [
-            ("video", "Video Addons", "DefaultAddonVideo.png"),
-            ("audio", "Music Addons", "DefaultAddonMusic.png"),
-            ("executable", "Program Addons", "DefaultAddonProgram.png"),
-        ]
+        if addon_type == "video":
+            types = [
+                ("movies", "Movies", "DefaultMovies.png"),
+                ("tvshows", "TV Shows", "DefaultTVShows.png"),
+                ("episodes", "Episodes", "DefaultTVShows.png"),
+                ("musicvideos", "Music Videos", "DefaultMusicVideos.png"),
+                ("videos", "Videos", "DefaultVideo.png"),
+            ]
+        elif addon_type == "audio":
+            types = [
+                ("songs", "Songs", "DefaultMusicSongs.png"),
+                ("albums", "Albums", "DefaultMusicAlbums.png"),
+                ("artists", "Artists", "DefaultMusicArtists.png"),
+                ("music", "Music", "DefaultAudio.png"),
+            ]
+        else:
+            types = [
+                ("programs", "Programs", "DefaultAddonProgram.png"),
+                ("files", "Files", "DefaultFile.png"),
+            ]
 
         listitems = []
-        for _type_id, label, icon in addon_types:
+        for _type_id, label, icon in types:
             listitem = xbmcgui.ListItem(label)
             listitem.setArt({"icon": icon})
             listitems.append(listitem)
 
-        selected = xbmcgui.Dialog().select(
-            "Browse Addons", listitems, useDetails=True
-        )
+        selected = xbmcgui.Dialog().select("Select Widget Type", listitems, useDetails=True)
 
         if selected == -1:
             return None
 
-        addon_type = addon_types[selected][0]
+        return types[selected][0]
 
-        # browse_type for Kodi API, widget_target for our properties
-        if addon_type == "video":
-            browse_type = "video"
-            widget_target = "videos"
-        elif addon_type == "audio":
-            browse_type = "music"
-            widget_target = "music"
-        else:
-            browse_type = "programs"
-            widget_target = "programs"
+    def _map_widget_type_to_target(self, widget_type: str, default: str) -> str:
+        """Map widget type to target window."""
+        type_to_target = {
+            "movies": "videos",
+            "tvshows": "videos",
+            "episodes": "videos",
+            "musicvideos": "videos",
+            "videos": "videos",
+            "songs": "music",
+            "albums": "music",
+            "artists": "music",
+            "music": "music",
+            "programs": "programs",
+            "files": "files",
+        }
+        return type_to_target.get(widget_type, default)
 
-        result = xbmcgui.Dialog().browse(
-            0,  # Folder/file selection
-            "Select Widget Source",
-            browse_type,
-            "",
-            False,
-            False,
-            f"addons://{addon_type}/",
-        )
+    def _is_browsable_widget(self, widget: Widget) -> bool:
+        """Check if a widget has a browsable path."""
+        if not widget.path:
+            return False
+        return self._is_path_browsable(widget.path)
 
-        if not result:
+    def _browse_widget_path(self, widget: Widget) -> Widget | None:
+        """Browse into a widget's path and let user select location.
+
+        Args:
+            widget: Widget with browsable path
+
+        Returns:
+            New Widget with browsed path, or None if cancelled
+        """
+        result = self._browse_directory(widget.path, resolve_label(widget.label))
+        if result is None:
             return None
 
-        path = result[0] if isinstance(result, list) else result
-        addon_name = path.split("/")[2] if path.count("/") >= 2 else "Widget"
+        path, label, icon = result
+
+        addon_type = "video"
+        if widget.target == "music":
+            addon_type = "audio"
+        elif widget.target == "programs":
+            addon_type = "executable"
+
+        widget_type = self._pick_widget_type(addon_type)
+        if widget_type is None:
+            return None
+
+        widget_target = self._map_widget_type_to_target(widget_type, widget.target or "videos")
 
         return Widget(
-            name=f"custom-{addon_name}",
-            label=addon_name,
+            name=f"browse-{hash(path)}",
+            label=label,
             path=path,
-            type=widget_target,
+            type=widget_type,
             target=widget_target,
-            icon=f"DefaultAddon{addon_type.title()}.png",
+            icon=icon or widget.icon,
+            source="addon",
         )
 
     def _nested_picker(
@@ -565,7 +598,37 @@ class PickersMixin:
             preselect = selected
             selected_item = visible_items[selected - offset]
 
+            if isinstance(selected_item, Input):
+                result = self._handle_input_selection(selected_item)
+                if result is not None:
+                    return result
+                continue
+
             if isinstance(selected_item, leaf_types):
+                is_browsable_shortcut = (
+                    isinstance(selected_item, Shortcut)
+                    and not selected_item.name.startswith("content-placeholder-")
+                    and self._is_browsable_shortcut(selected_item)
+                )
+                if is_browsable_shortcut:
+                    browse_info = self._get_browse_info_from_shortcut(selected_item)
+                    if browse_info:
+                        browse_path, target_window = browse_info
+                        result = self._browse_path(
+                            browse_path,
+                            title=resolve_label(selected_item.label),
+                            target_window=target_window,
+                        )
+                        if result is not None:
+                            return result
+                        continue
+
+                if isinstance(selected_item, Widget) and self._is_browsable_widget(selected_item):
+                    result = self._browse_widget_path(selected_item)
+                    if result is not None:
+                        return result
+                    continue
+
                 return selected_item
 
             result = self._pick_from_hierarchy_group(
@@ -603,7 +666,14 @@ class PickersMixin:
             xbmcgui.Dialog().notification("No Items", "No items available in this group")
             return None
 
-        if len(visible_items) == 1 and isinstance(visible_items[0], leaf_types):
+        if (
+            len(visible_items) == 1
+            and isinstance(visible_items[0], leaf_types)
+            and not (
+                isinstance(visible_items[0], Shortcut)
+                and visible_items[0].name.startswith("content-placeholder-")
+            )
+        ):
             return visible_items[0]
 
         preselect = -1
@@ -631,7 +701,37 @@ class PickersMixin:
             preselect = selected
             selected_item = visible_items[selected]
 
+            if isinstance(selected_item, Input):
+                result = self._handle_input_selection(selected_item)
+                if result is not None:
+                    return result
+                continue
+
             if isinstance(selected_item, leaf_types):
+                is_browsable_shortcut = (
+                    isinstance(selected_item, Shortcut)
+                    and not selected_item.name.startswith("content-placeholder-")
+                    and self._is_browsable_shortcut(selected_item)
+                )
+                if is_browsable_shortcut:
+                    browse_info = self._get_browse_info_from_shortcut(selected_item)
+                    if browse_info:
+                        browse_path, target_window = browse_info
+                        result = self._browse_path(
+                            browse_path,
+                            title=resolve_label(selected_item.label),
+                            target_window=target_window,
+                        )
+                        if result is not None:
+                            return result
+                        continue
+
+                if isinstance(selected_item, Widget) and self._is_browsable_widget(selected_item):
+                    result = self._browse_widget_path(selected_item)
+                    if result is not None:
+                        return result
+                    continue
+
                 return selected_item
 
             result = self._pick_from_hierarchy_group(
@@ -668,12 +768,15 @@ class PickersMixin:
                     continue
                 if content_resolver:
                     resolved = content_resolver(item)
+                    browse_shortcut = self._get_browse_placeholder_for_content(item)
+                    if browse_shortcut:
+                        visible_items.append(browse_shortcut)
                     if item.folder and resolved and create_folder_group:
                         folder = create_folder_group(item.folder, resolved)
                         visible_items.append(folder)
-                    else:
+                    elif resolved:
                         visible_items.extend(resolved)
-            elif isinstance(item, (*leaf_types, *group_types)):
+            elif isinstance(item, (Input, *leaf_types, *group_types)):
                 if not _check_visible(getattr(item, "visible", "")):
                     continue
                 condition = getattr(item, "condition", "")
@@ -682,6 +785,240 @@ class PickersMixin:
                 visible_items.append(item)
 
         return visible_items
+
+    def _handle_input_selection(self, input_item: Input) -> Shortcut | None:
+        """Handle selection of an Input item by showing keyboard.
+
+        Args:
+            input_item: The Input item that was selected
+
+        Returns:
+            Shortcut with entered value, or None if cancelled
+        """
+        input_type_map = {
+            "text": xbmcgui.INPUT_ALPHANUM,
+            "numeric": xbmcgui.INPUT_NUMERIC,
+            "ipaddress": xbmcgui.INPUT_IPADDRESS,
+            "password": xbmcgui.INPUT_PASSWORD,
+        }
+
+        keyboard_type = input_type_map.get(input_item.type, xbmcgui.INPUT_ALPHANUM)
+        heading = resolve_label(input_item.label)
+
+        result = xbmcgui.Dialog().input(heading, type=keyboard_type)
+        if not result:
+            return None
+
+        if input_item.for_ == "action":
+            return Shortcut(
+                name=f"custom-input-{hash(result)}",
+                label=input_item.label,
+                action=result,
+                icon=input_item.icon,
+            )
+        if input_item.for_ == "label":
+            return Shortcut(
+                name=f"custom-input-{hash(result)}",
+                label=result,
+                action="noop",
+                icon=input_item.icon,
+            )
+        if input_item.for_ == "path":
+            return Shortcut(
+                name=f"custom-input-{hash(result)}",
+                label=input_item.label,
+                action=f"ActivateWindow(Videos,{result},return)",
+                icon=input_item.icon,
+            )
+
+        return None
+
+    def _browse_directory(
+        self,
+        path: str,
+        title: str = "",
+    ) -> tuple[str, str, str] | None:
+        """Browse into a path and let user select location or navigate deeper.
+
+        Shows directory contents with "Use this location" at top.
+        Selecting a directory navigates into it.
+        Selecting "Use this location" or a file returns path info.
+
+        Args:
+            path: Starting path to browse
+            title: Dialog title (defaults to path basename)
+
+        Returns:
+            Tuple of (path, label, icon) for selected location, or None if cancelled
+        """
+        from ..localize import LANGUAGE
+
+        browse_provider = get_browse_provider()
+        current_path = path
+        current_label = title
+
+        while True:
+            items = browse_provider.list_directory(current_path)
+            if items is None:
+                xbmcgui.Dialog().notification(
+                    "Cannot Browse", "Unable to list directory contents"
+                )
+                return None
+
+            dialog_title = current_label or "Browse"
+
+            listitems = []
+
+            use_location_item = xbmcgui.ListItem(LANGUAGE(32058))
+            use_location_item.setArt({"icon": "DefaultFolder.png"})
+            listitems.append(use_location_item)
+
+            for item in items:
+                label = item.label
+                if item.is_directory:
+                    label = f"{label} >"
+                listitem = xbmcgui.ListItem(label)
+                listitem.setArt({"icon": item.icon})
+                listitems.append(listitem)
+
+            selected = xbmcgui.Dialog().select(dialog_title, listitems, useDetails=True)
+
+            if selected == -1:
+                return None
+
+            if selected == 0:
+                return (current_path, current_label or "Location", "DefaultFolder.png")
+
+            selected_item = items[selected - 1]
+
+            if selected_item.is_directory:
+                current_path = selected_item.path
+                current_label = selected_item.label
+                continue
+
+            return (selected_item.path, selected_item.label, selected_item.icon)
+
+    def _browse_path(
+        self,
+        path: str,
+        title: str = "",
+        target_window: str = "videos",
+    ) -> Shortcut | None:
+        """Browse into a path and let user select location or navigate deeper.
+
+        Shows directory contents with "Use this location" at top.
+        Selecting a directory navigates into it.
+        Selecting "Use this location" or a file returns a Shortcut.
+
+        Args:
+            path: Starting path to browse
+            title: Dialog title (defaults to path basename)
+            target_window: Window for ActivateWindow action
+
+        Returns:
+            Shortcut for selected location, or None if cancelled
+        """
+        result = self._browse_directory(path, title)
+        if result is None:
+            return None
+
+        selected_path, label, icon = result
+        return Shortcut(
+            name=f"browse-{hash(selected_path)}",
+            label=label,
+            action=f"ActivateWindow({target_window},{selected_path},return)",
+            icon=icon,
+        )
+
+    def _is_browsable_shortcut(self, shortcut: Shortcut) -> bool:
+        """Check if a shortcut has a browsable path."""
+        action = shortcut.get_action() if hasattr(shortcut, "get_action") else shortcut.action
+
+        if not action:
+            return False
+
+        action_lower = action.lower()
+        if action_lower.startswith("activatewindow("):
+            inner = action[15:-1]
+            parts = inner.split(",")
+            if len(parts) >= 2:
+                path = parts[1].strip()
+                return self._is_path_browsable(path)
+
+        return False
+
+    def _is_path_browsable(self, path: str) -> bool:
+        """Check if a path can be browsed into."""
+        if not path:
+            return False
+
+        browsable_prefixes = (
+            "plugin://",
+            "addons://",
+        )
+
+        return path.lower().startswith(browsable_prefixes)
+
+    def _get_browse_placeholder_for_content(self, content: Content) -> Shortcut | None:
+        """Create a browse placeholder shortcut for Content that resolved to empty.
+
+        Returns a browsable shortcut if the content source supports browsing,
+        allowing the user to navigate to the location even when empty.
+        """
+        from ..localize import LANGUAGE
+
+        if content.source.lower() != "addons":
+            return None
+
+        target_map = {
+            "video": ("addons://sources/video/", "videos"),
+            "videos": ("addons://sources/video/", "videos"),
+            "audio": ("addons://sources/audio/", "music"),
+            "music": ("addons://sources/audio/", "music"),
+            "image": ("addons://sources/image/", "pictures"),
+            "pictures": ("addons://sources/image/", "pictures"),
+            "executable": ("addons://sources/executable/", "programs"),
+            "programs": ("addons://sources/executable/", "programs"),
+            "game": ("addons://sources/game/", "games"),
+            "games": ("addons://sources/game/", "games"),
+        }
+
+        target = content.target.lower() if content.target else "video"
+        if target not in target_map:
+            return None
+
+        path, window = target_map[target]
+
+        return Shortcut(
+            name=f"content-placeholder-{content.source}-{target}",
+            label=LANGUAGE(32058),
+            action=f"ActivateWindow({window},{path},return)",
+            icon=content.icon if content.icon else "DefaultFolder.png",
+            type=content.label if content.label else "",
+        )
+
+    def _get_browse_info_from_shortcut(self, shortcut: Shortcut) -> tuple[str, str] | None:
+        """Extract browsable path and target window from a shortcut.
+
+        Returns:
+            Tuple of (path, window) or None if not browsable
+        """
+        action = shortcut.get_action() if hasattr(shortcut, "get_action") else shortcut.action
+
+        if not action:
+            return None
+
+        action_lower = action.lower()
+        if action_lower.startswith("activatewindow("):
+            inner = action[15:-1]
+            parts = inner.split(",")
+            if len(parts) >= 2:
+                window = parts[0].strip()
+                path = parts[1].strip()
+                if self._is_path_browsable(path):
+                    return (path, window)
+
+        return None
 
     def _pick_background(
         self, item_props: dict[str, str], current_value: str = ""

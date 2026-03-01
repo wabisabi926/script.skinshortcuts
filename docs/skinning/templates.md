@@ -2,7 +2,7 @@
 
 The `templates.xml` file defines how the script generates include files. Templates transform menu items into Kodi-compatible XML.
 
-***
+---
 
 ## Table of Contents
 
@@ -17,6 +17,8 @@ The `templates.xml` file defines how the script generates include files. Templat
 * [Dynamic Expressions](#dynamic-expressions)
 * [Skinshortcuts Tag](#skinshortcuts-tag)
 * [Submenu Items Iteration](#submenu-items-iteration)
+  * [Dynamic Widgets Pattern](#dynamic-widgets-pattern)
+  * [Troubleshooting "No Menu Items Matched"](#troubleshooting-no-menu-items-matched)
 * [Property Groups](#property-groups)
 * [Presets](#presets)
 * [Variables](#variables)
@@ -27,7 +29,7 @@ The `templates.xml` file defines how the script generates include files. Templat
 * [templateonly Attribute](#templateonly-attribute)
 * [Complete Example](#complete-example)
 
-***
+---
 
 ## Overview
 
@@ -38,7 +40,9 @@ Without `templates.xml`, the script generates basic includes with menu items as 
 * Generate Kodi variables
 * Build conditional includes
 
-***
+> **See also:** [Built-in Properties](builtin-properties.md) for available item properties
+
+---
 
 ## File Structure
 
@@ -80,7 +84,7 @@ Without `templates.xml`, the script generates basic includes with menu items as 
 </templates>
 ```
 
-***
+---
 
 ## Template Element
 
@@ -89,9 +93,9 @@ Without `templates.xml`, the script generates basic includes with menu items as 
   <condition>...</condition>
   <property name="style" from="widgetStyle" />
   <var name="aspect">...</var>
-  <propertyGroup name="widgetProps" />
-  <preset name="aspectRatio" />
-  <variableGroup name="widgetVars" />
+  <propertyGroup content="widgetProps" />
+  <preset content="aspectRatio" />
+  <variableGroup content="widgetVars" />
   <controls>...</controls>
 </template>
 ```
@@ -105,7 +109,7 @@ Without `templates.xml`, the script generates basic includes with menu items as 
 | `idprefix` | No | - | Prefix for computed control IDs |
 | `templateonly` | No | - | Skip include generation: `true` (always) or `auto` (if unassigned) |
 
-***
+---
 
 ## Multi-Output Templates
 
@@ -205,7 +209,7 @@ Use a single template with multiple outputs:
 
 Differences between slots are handled via `suffix=.2` conditions in presets and conditional includes.
 
-***
+---
 
 ## Build Modes
 
@@ -261,7 +265,69 @@ No iteration, outputs controls once with parameter substitution:
 
 Use as `<include content="skinshortcuts-UtilityInclude"><param name="id">9001</param></include>`.
 
-***
+Raw mode also supports `<skinshortcuts>visibility</skinshortcuts>` markers. Instead of per-item visibility, the marker generates an OR'd condition across all matching menu items — outputting controls once with combined visibility. This is useful for elements that should be visible when *any* matching item is focused:
+
+```xml
+<template include="SharedBackground" build="true" menu="mainmenu">
+  <condition>backgroundPath</condition>
+  <controls>
+    <control type="image">
+      <skinshortcuts>visibility</skinshortcuts>
+      <texture>background.jpg</texture>
+    </control>
+  </controls>
+</template>
+```
+
+Output (single control, not repeated per item):
+
+```xml
+<control type="image">
+  <visible>String.IsEqual(Container(9000).ListItem.Property(name),movies) | String.IsEqual(Container(9000).ListItem.Property(name),tvshows)</visible>
+  <texture>background.jpg</texture>
+</control>
+```
+
+If no items match the template's conditions, the visibility is set to `false`.
+
+### Raw Mode with Properties
+
+When a `build="true"` template defines properties, vars, or presets, the builder resolves them per menu item and deduplicates the output. Items that resolve to identical controls are grouped into a single control with OR'd visibility. Items that resolve differently get separate controls.
+
+```xml
+<template include="BackgroundWidget" build="true" menu="mainmenu">
+  <property name="widgetTarget" condition="widgetTarget.backgroundWidget" from="widgetTarget.backgroundWidget" />
+  <property name="widgetPath" condition="widgetPath.backgroundWidget" from="widgetPath.backgroundWidget" />
+  <property name="widgetTarget">$INFO[Skin.String(widgetTarget)]</property>
+  <property name="widgetPath">$INFO[Skin.String(widgetPath)]</property>
+  <controls>
+    <control type="wraplist">
+      <content limit="25" target="$PROPERTY[widgetTarget]">$PROPERTY[widgetPath]</content>
+      <skinshortcuts>visibility</skinshortcuts>
+    </control>
+  </controls>
+</template>
+```
+
+If 3 items use the global skin string fallback and 1 item has a custom `backgroundWidget`, the output is 2 controls:
+
+```xml
+<!-- Items without custom background widget (deduplicated) -->
+<control type="wraplist">
+  <content limit="25" target="$INFO[Skin.String(widgetTarget)]">$INFO[Skin.String(widgetPath)]</content>
+  <visible>...item1... | ...item3... | ...item4...</visible>
+</control>
+
+<!-- Item with custom background widget -->
+<control type="wraplist">
+  <content limit="25" target="movies">plugin://some.addon/path</content>
+  <visible>...item2...</visible>
+</control>
+```
+
+Without properties defined, raw mode outputs controls once with all visibility OR'd (no per-item processing).
+
+---
 
 ## Properties
 
@@ -312,10 +378,11 @@ Standard item properties are also available:
 | `icon` | Item icon |
 | `thumb` | Item thumbnail |
 | `path` | Primary action |
+| `visible` | Visibility condition |
 
-These come from the menu item's properties, along with any custom properties set in menus.xml or by the user.
+These come from the menu item's attributes, along with any custom properties set in menus.xml or by the user.
 
-***
+---
 
 ## Vars
 
@@ -331,7 +398,7 @@ Multi-conditional values resolved during context building:
 
 First matching condition wins. Once resolved, vars become properties accessible via `$PROPERTY[aspectRatio]`.
 
-***
+---
 
 ## Controls
 
@@ -357,7 +424,7 @@ XML content output per item:
 
 Note: Vars defined with `<var>` are resolved during context building and accessible via `$PROPERTY[name]`.
 
-***
+---
 
 ## Dynamic Expressions
 
@@ -451,7 +518,7 @@ In template text substitution:
 3. `$PROPERTY[...]` - property substitution
 4. `$INCLUDE[...]` - include conversion
 
-***
+---
 
 ## Skinshortcuts Tag
 
@@ -470,7 +537,7 @@ Generate a visibility condition that matches the current menu item:
 </controls>
 ```
 
-Outputs:
+Outputs (per item in menu mode):
 
 ```xml
 <control type="image">
@@ -478,6 +545,8 @@ Outputs:
   <texture>/path/to/background.jpg</texture>
 </control>
 ```
+
+In `build="true"` (raw) mode, the same marker generates an OR'd condition across matching items. When properties are defined, items are grouped by resolved output and each group gets its own OR'd visibility. See [Raw Mode](#raw-mode) and [Raw Mode with Properties](#raw-mode-with-properties) for details.
 
 ### Include Expansion
 
@@ -537,15 +606,58 @@ Supports full condition syntax including:
 
 If the condition evaluates to false, the entire element is removed.
 
-### Attributes
+### Onclick Expansion
+
+Generate onclick elements from a menu item's actions:
+
+```xml
+<controls>
+  <control type="button" id="$PROPERTY[id]">
+    <label>$PROPERTY[label]</label>
+    <skinshortcuts>onclick</skinshortcuts>
+    <visible>$PROPERTY[visible]</visible>
+  </control>
+</controls>
+```
+
+The `<skinshortcuts>onclick</skinshortcuts>` element is replaced with all onclick elements from the item's actions, including:
+
+1. **Before defaults** - Actions from menu's `<defaults>` with `when="before"`
+2. **Conditional item actions** - Item actions with `condition` attribute
+3. **Unconditional item actions** - Item actions without conditions
+4. **After defaults** - Actions from menu's `<defaults>` with `when="after"`
+
+Example output:
+
+```xml
+<control type="button" id="1">
+  <label>Settings</label>
+  <onclick>Dialog.Close(all,true)</onclick>
+  <onclick condition="System.Platform.Windows">WindowsAction()</onclick>
+  <onclick>ActivateWindow(Settings)</onclick>
+  <onclick>AfterAction()</onclick>
+  <visible>System.CanPowerDown</visible>
+</control>
+```
+
+This enables creating button menus where each menu item becomes an individual button control with full action support.
+
+### Attributes Summary
 
 | Attribute | Required | Description |
 |-----------|----------|-------------|
-| `include` | Yes | Name of include definition to expand |
+| `include` | No | Name of include definition to expand |
 | `condition` | No | Condition expression (see [Conditions](conditions.md)) |
 | `wrap` | No | If `true`, output as Kodi `<include>` element instead of unwrapping |
 
-***
+**Text content:**
+
+| Value | Description |
+|-------|-------------|
+| `visibility` | Generate visibility condition matching current item (per-item in menu mode, OR'd in raw mode — per-group when properties are defined) |
+| `onclick` | Generate onclick elements from item actions |
+
+---
 
 ## Submenu Items Iteration
 
@@ -762,7 +874,67 @@ If a submenu doesn't exist or has no items, the insert marker produces no output
 
 Submenu items with `<disabled>true</disabled>` are automatically skipped during iteration.
 
-***
+### Dynamic Widgets Pattern
+
+This pattern allows unlimited, reorderable widgets per menu item using subdialogs and items templates together.
+
+**How it works:**
+
+1. User clicks a button (e.g., 406) to manage widgets for a menu item
+2. A subdialog opens with `action="menu" menu="{item}.widgets"`
+3. User adds/removes/reorders items in that submenu (each item = one widget)
+4. The items template iterates over those submenu items to generate widget controls
+
+**menus.xml configuration:**
+
+```xml
+<dialogs>
+  <subdialog buttonID="406" mode="widgets" setfocus="309">
+    <onclose action="menu" menu="{item}.widgets" />
+  </subdialog>
+</dialogs>
+```
+
+When button 406 is clicked, the dialog switches to "widgets" mode. When that mode closes, `action="menu"` opens the `{item}.widgets` submenu for editing (e.g., `movies.widgets` if the current item is "movies").
+
+**templates.xml configuration:**
+
+```xml
+<!-- Items template: iterates over each widget in the submenu -->
+<template items="widgets" source="widgets">
+  <property name="widget_id" from="index" />
+  <property name="widget_path" from="widgetPath" />
+
+  <controls>
+    <control type="group" id="$MATH[$PARENT[index] * 100 + widget_id]">
+      <visible>String.IsEqual(Container(9000).ListItem.Property(name),$PARENT[name])</visible>
+      <content>$PROPERTY[widget_path]</content>
+    </control>
+  </controls>
+</template>
+
+<!-- Regular template with insert marker -->
+<template include="Widgets">
+  <controls>
+    <skinshortcuts insert="widgets" />
+  </controls>
+</template>
+```
+
+The items template looks up `{parent_item.name}.widgets` (e.g., `movies.widgets`) and generates controls for each widget item in that submenu.
+
+### Troubleshooting "No Menu Items Matched"
+
+If your template outputs `<description>Automatically generated - no menu items matched this template</description>`, check:
+
+1. **Template condition** - If you have `<condition>someProperty</condition>`, ensure menu items have that property set
+2. **Submenu exists** - The submenu `{item}.{source}` must exist (e.g., `movies.widgets` for `source="widgets"`)
+3. **Submenu has items** - Empty submenus produce no output
+4. **Filter too restrictive** - If using `filter="..."`, some items may be excluded
+
+To iterate over all menu items without conditions, omit the `<condition>` element from your items template.
+
+---
 
 ## Property Groups
 
@@ -785,7 +957,7 @@ Reference in template:
 
 ```xml
 <template include="MainMenu">
-  <propertyGroup name="widgetProps" />
+  <propertyGroup content="widgetProps" />
 </template>
 ```
 
@@ -793,16 +965,16 @@ Reference in template:
 
 | Attribute | Required | Description |
 |-----------|----------|-------------|
-| `name` | Yes | Name of property group to apply |
+| `content` | Yes | Name of property group to apply |
 | `suffix` | No | Suffix for property transforms (e.g., `.2`) |
 | `condition` | No | Only apply if condition matches item |
 
 ```xml
 <!-- Only apply widget props if item has a widget -->
-<propertyGroup name="widgetProps" condition="widgetPath" />
+<propertyGroup content="widgetProps" condition="widgetPath" />
 
 <!-- Apply with suffix for Widget 2 -->
-<propertyGroup name="widgetProps" suffix=".2" condition="widgetPath.2" />
+<propertyGroup content="widgetProps" suffix=".2" condition="widgetPath.2" />
 ```
 
 ### Suffix Transform
@@ -810,7 +982,7 @@ Reference in template:
 Apply suffix for widget slots:
 
 ```xml
-<propertyGroup name="widgetProps" suffix=".2" />
+<propertyGroup content="widgetProps" suffix=".2" />
 ```
 
 Transforms:
@@ -818,7 +990,9 @@ Transforms:
 * `from="widgetPath"` → `from="widgetPath.2"`
 * `condition="widgetType=movies"` → `condition="widgetType.2=movies"`
 
-***
+> **See also:** [Properties](properties.md) for defining custom properties
+
+---
 
 ## Presets
 
@@ -838,7 +1012,7 @@ Reference:
 
 ```xml
 <template include="MainMenu">
-  <preset name="widgetLayout" />
+  <preset content="widgetLayout" />
   <controls>
     <control type="panel" layout="$PROPERTY[layout]" />
   </controls>
@@ -851,18 +1025,18 @@ All matched attributes become properties.
 
 | Attribute | Required | Description |
 |-----------|----------|-------------|
-| `name` | Yes | Name of preset to apply |
+| `content` | Yes | Name of preset to apply |
 | `suffix` | No | Suffix for condition transforms (e.g., `.2`) |
 | `condition` | No | Only apply if condition matches item |
 
 ```xml
 <!-- Apply layout preset for Widget 2 properties -->
-<preset name="widgetLayout" suffix=".2" condition="widgetPath.2" />
+<preset content="widgetLayout" suffix=".2" condition="widgetPath.2" />
 ```
 
 When `suffix` is specified, preset conditions like `widgetStyle=Panel` are transformed to `widgetStyle.2=Panel`.
 
-***
+---
 
 ## Variables
 
@@ -900,7 +1074,7 @@ Generates per menu item:
   </variable>
 
   <variableGroup name="menuVars">
-    <variable name="ItemLabel" />
+    <variable content="ItemLabel" />
   </variableGroup>
 </variables>
 ```
@@ -909,7 +1083,7 @@ Reference in template:
 
 ```xml
 <template include="MainMenu">
-  <variableGroup name="menuVars" />
+  <variableGroup content="menuVars" />
 </template>
 ```
 
@@ -917,16 +1091,16 @@ Reference in template:
 
 | Attribute | Required | Description |
 |-----------|----------|-------------|
-| `name` | Yes | Name of variable group to apply |
+| `content` | Yes | Name of variable group to apply |
 | `suffix` | No | Suffix for condition transforms (e.g., `.2`) |
 | `condition` | No | Only build if condition matches item |
 
 ```xml
 <!-- Build widget variables only for items with widgets -->
-<variableGroup name="widgetVars" condition="widgetPath" />
+<variableGroup content="widgetVars" condition="widgetPath" />
 
 <!-- Build Widget 2 variables with suffix transform -->
-<variableGroup name="widgetVars" suffix=".2" condition="widgetPath.2" />
+<variableGroup content="widgetVars" suffix=".2" condition="widgetPath.2" />
 ```
 
 ### Variable Attributes
@@ -937,7 +1111,7 @@ Reference in template:
 | `condition` | Build only when condition matches item |
 | `output` | Output name pattern (supports `$PROPERTY[]`) |
 
-***
+---
 
 ## Expressions
 
@@ -955,10 +1129,10 @@ Use in template conditions:
 
 ```xml
 <skinshortcuts include="WidgetControls" condition="$EXP[HasWidget]" />
-<propertyGroup name="movieProps" condition="$EXP[IsMovies]" />
+<propertyGroup content="movieProps" condition="$EXP[IsMovies]" />
 ```
 
-***
+---
 
 ## Includes
 
@@ -984,7 +1158,7 @@ Use in controls via the `<skinshortcuts>` tag:
 
 See [Skinshortcuts Tag](#skinshortcuts-tag) for details on `include`, `condition`, and `wrap` attributes.
 
-***
+---
 
 ## Submenus
 
@@ -1011,7 +1185,7 @@ Template for submenu generation:
 | `level` | Submenu depth (1 = direct child, 2 = grandchild, etc.) |
 | `name` | Match specific submenu name (empty = all) |
 
-***
+---
 
 ## Conditions
 
@@ -1031,7 +1205,7 @@ Multiple `<condition>` elements are ANDed together. The template only builds for
 
 See [Conditions](conditions.md) for full syntax reference.
 
-***
+---
 
 ## templateonly Attribute
 
@@ -1082,7 +1256,7 @@ When `$INCLUDE[...]` appears as text content in an element (e.g., after `$PROPER
 <content><include>skinshortcuts-template-MovieWidgets</include></content>
 ```
 
-***
+---
 
 ## Complete Example
 
@@ -1107,7 +1281,7 @@ When `$INCLUDE[...]` appears as text content in an element (e.g., after `$PROPER
   <template include="MainMenu" idprefix="menu">
     <property name="label" from="label" />
     <property name="action" from="path" />
-    <propertyGroup name="widget" />
+    <propertyGroup content="widget" />
 
     <controls>
       <control type="button" id="$PROPERTY[id]">
@@ -1137,12 +1311,6 @@ When `$INCLUDE[...]` appears as text content in an element (e.g., after `$PROPER
 </templates>
 ```
 
-***
+---
 
-## Quick Navigation
-
-[Back to Top](#template-configuration)
-
-**Sections:** [Overview](#overview) | [File Structure](#file-structure) | [Template Element](#template-element) | [Multi-Output](#multi-output-templates) | [Build Modes](#build-modes) | [Properties](#properties) | [Vars](#vars) | [Controls](#controls) | [Dynamic Expressions](#dynamic-expressions) | [Skinshortcuts Tag](#skinshortcuts-tag) | [Items Iteration](#submenu-items-iteration) | [Property Groups](#property-groups) | [Presets](#presets) | [Variables](#variables) | [Expressions](#expressions) | [Includes](#includes) | [Submenus](#submenus) | [Conditions](#conditions) | [templateonly](#templateonly-attribute)
-
-**Related Docs:** [Conditions](conditions.md) | [Properties](properties.md) | [Menus](menus.md) | [Widgets](widgets.md)
+[↑ Top](#template-configuration) · [Skinning Docs](index.md)

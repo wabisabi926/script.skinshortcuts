@@ -11,6 +11,8 @@ from ..models.menu import (
     Content,
     DefaultAction,
     IconSource,
+    IncludeRef,
+    Input,
     Menu,
     MenuAllow,
     MenuConfig,
@@ -141,14 +143,19 @@ def _parse_dialogs(root) -> list[SubDialog]:
     subdialogs = []
     for elem in dialogs_elem.findall("subdialog"):
         button_id_str = get_attr(elem, "buttonID")
-        mode = get_attr(elem, "mode")
-
-        if not button_id_str or not mode:
+        if not button_id_str:
             continue
 
         try:
             button_id = int(button_id_str)
         except ValueError:
+            continue
+
+        mode = get_attr(elem, "mode") or ""
+        menu = get_attr(elem, "menu") or ""
+        onclose_actions = _parse_onclose(elem)
+
+        if not mode and not menu and not onclose_actions:
             continue
 
         setfocus = None
@@ -157,12 +164,12 @@ def _parse_dialogs(root) -> list[SubDialog]:
             setfocus = int(setfocus_str)
 
         suffix = get_attr(elem, "suffix") or ""
-        onclose_actions = _parse_onclose(elem)
 
         subdialogs.append(
             SubDialog(
                 button_id=button_id,
                 mode=mode,
+                menu=menu,
                 setfocus=setfocus,
                 suffix=suffix,
                 onclose=onclose_actions,
@@ -223,14 +230,23 @@ def _parse_menu(elem, path: str, is_submenu: bool = False) -> Menu:
     if not menu_name:
         raise MenuConfigError(path, "Menu missing 'name' attribute")
 
+    menu_type = get_attr(elem, "type") if is_submenu else None
+    is_widget_submenu = menu_type == "widgets"
+
     items = []
     for item_elem in elem.findall("item"):
-        item = _parse_item(item_elem, menu_name, path)
+        item = _parse_item(item_elem, menu_name, path, is_widget_submenu)
         items.append(item)
 
     defaults = _parse_defaults(elem.find("defaults"))
     allow = _parse_allow(elem.find("allow"))
     container = get_attr(elem, "container") or None
+    controltype = get_attr(elem, "controltype") or ""
+    startid_str = get_attr(elem, "id") or ""
+    startid = int(startid_str) if startid_str.isdigit() else 1
+    template_only = get_attr(elem, "template_only") or ""
+    build = get_attr(elem, "build") or "true"
+    action = get_attr(elem, "action") or ""
 
     return Menu(
         name=menu_name,
@@ -239,10 +255,18 @@ def _parse_menu(elem, path: str, is_submenu: bool = False) -> Menu:
         allow=allow,
         container=container,
         is_submenu=is_submenu,
+        menu_type=menu_type,
+        controltype=controltype,
+        startid=startid,
+        template_only=template_only,
+        build=build,
+        action=action,
     )
 
 
-def _parse_item(elem, menu_name: str, path: str) -> MenuItem:
+def _parse_item(
+    elem, menu_name: str, path: str, is_widget_submenu: bool = False
+) -> MenuItem:
     item_name = get_attr(elem, "name")
     if not item_name:
         raise MenuConfigError(path, f"Menu '{menu_name}' has item without 'name'")
@@ -252,13 +276,25 @@ def _parse_item(elem, menu_name: str, path: str) -> MenuItem:
         raise MenuConfigError(path, f"Item '{item_name}' missing <label>")
 
     actions = []
-    for action_elem in elem.findall("action"):
-        if action_elem.text:
-            actions.append(Action(
-                action=action_elem.text.strip(),
-                condition=get_attr(action_elem, "condition") or "",
-            ))
+    includes = []
+    seen_action = False
 
+    for child in elem:
+        if child.tag == "action" and child.text:
+            seen_action = True
+            actions.append(Action(
+                action=child.text.strip(),
+                condition=get_attr(child, "condition") or "",
+            ))
+        elif child.tag == "skinshortcuts":
+            include_name = get_attr(child, "include")
+            if include_name:
+                position = "after-onclick" if seen_action else "before-onclick"
+                includes.append(IncludeRef(
+                    name=include_name,
+                    condition=get_attr(child, "condition") or "",
+                    position=position,
+                ))
 
     properties = {}
     for prop_elem in elem.findall("property"):
@@ -266,7 +302,11 @@ def _parse_item(elem, menu_name: str, path: str) -> MenuItem:
         if prop_name and prop_elem.text:
             properties[prop_name] = prop_elem.text.strip()
 
-    visible = get_text(elem, "visible") or ""
+    if is_widget_submenu and "widgetLabel" not in properties:
+        properties["widgetLabel"] = label
+
+    visible_parts = [v.text.strip() for v in elem.findall("visible") if v.text]
+    visible = " + ".join(visible_parts) if visible_parts else ""
 
     widget_attr = get_attr(elem, "widget")
     if widget_attr:
@@ -300,6 +340,7 @@ def _parse_item(elem, menu_name: str, path: str) -> MenuItem:
         protection=protection,
         properties=properties,
         submenu=get_attr(elem, "submenu"),
+        includes=includes,
     )
 
 
@@ -321,17 +362,31 @@ def _parse_defaults(elem) -> MenuDefaults:
         properties["background"] = background_attr
 
     actions = []
-    for action_elem in elem.findall("action"):
-        if action_elem.text:
+    includes = []
+    seen_action = False
+
+    for child in elem:
+        if child.tag == "action" and child.text:
+            seen_action = True
             actions.append(DefaultAction(
-                action=action_elem.text.strip(),
-                when=get_attr(action_elem, "when") or "before",
-                condition=get_attr(action_elem, "condition") or "",
+                action=child.text.strip(),
+                when=get_attr(child, "when") or "before",
+                condition=get_attr(child, "condition") or "",
             ))
+        elif child.tag == "skinshortcuts":
+            include_name = get_attr(child, "include")
+            if include_name:
+                position = "after-onclick" if seen_action else "before-onclick"
+                includes.append(IncludeRef(
+                    name=include_name,
+                    condition=get_attr(child, "condition") or "",
+                    position=position,
+                ))
 
     return MenuDefaults(
         properties=properties,
         actions=actions,
+        includes=includes,
     )
 
 
@@ -351,11 +406,16 @@ def _parse_allow(elem) -> MenuAllow:
     )
 
 
-def load_groupings(path: str | Path) -> list[ShortcutGroup]:
+def load_groupings(
+    path: str | Path, menu_id: str = ""
+) -> list[Shortcut | ShortcutGroup | Content | Input]:
     """Load shortcut groupings from menus.xml file.
 
     Groupings define the available shortcuts for the picker dialog.
     They are stored inside a <groupings> element within <menus>.
+
+    If menu_id is provided, a <groupings menu="menu_id"> element takes
+    priority over the default (unnamed) <groupings>.
 
     Note: Consider using load_menus() instead which returns full MenuConfig.
 
@@ -373,6 +433,13 @@ def load_groupings(path: str | Path) -> list[ShortcutGroup]:
               <content source="playlists" target="videos"/>
               <group name="...">...</group>  <!-- nested -->
             </group>
+            <!-- Top-level items also supported -->
+            <shortcut name="..." label="...">...</shortcut>
+            <content source="..." target="..."/>
+            <input label="..." type="text" for="action" />
+          </groupings>
+          <groupings menu="powermenu">
+            <!-- Completely replaces default groupings for this menu -->
           </groupings>
         </menus>
     """
@@ -381,26 +448,56 @@ def load_groupings(path: str | Path) -> list[ShortcutGroup]:
         return []
 
     root = parse_xml(path, "menus", MenuConfigError)
-    return _parse_shortcut_groupings(root, str(path))
+    return _parse_shortcut_groupings(root, str(path), menu_id)
 
 
-def _parse_shortcut_groupings(root, path: str) -> list[ShortcutGroup]:
-    """Parse groupings from root element."""
-    groupings_elem = root.find("groupings")
+def _parse_shortcut_groupings(
+    root, path: str, menu_id: str = ""
+) -> list[Shortcut | ShortcutGroup | Content | Input]:
+    """Parse groupings from root element.
+
+    Supports all item types at the top level: groups, shortcuts, content, and inputs.
+    If menu_id is provided, a menu-specific <groupings> replaces the default.
+    """
+    default_elem = None
+    menu_elem = None
+
+    for elem in root.findall("groupings"):
+        menu_attr = get_attr(elem, "menu") or ""
+        if menu_attr and menu_id and menu_attr == menu_id:
+            menu_elem = elem
+            break
+        if not menu_attr and default_elem is None:
+            default_elem = elem
+
+    groupings_elem = menu_elem or default_elem
     if groupings_elem is None:
         return []
 
-    groups = []
-    for group_elem in groupings_elem.findall("group"):
-        group = _parse_shortcut_group(group_elem, path)
-        if group:
-            groups.append(group)
+    items: list[Shortcut | ShortcutGroup | Content | Input] = []
+    for child in groupings_elem:
+        if child.tag == "group":
+            group = _parse_shortcut_group(child, path)
+            if group:
+                items.append(group)
+        elif child.tag == "shortcut":
+            shortcut = _parse_shortcut(child, path)
+            if shortcut:
+                items.append(shortcut)
+        elif child.tag == "content":
+            content = parse_content(child)
+            if content:
+                items.append(content)
+        elif child.tag == "input":
+            input_item = _parse_input(child)
+            if input_item:
+                items.append(input_item)
 
-    return groups
+    return items
 
 
 def _parse_shortcut_group(elem, path: str) -> ShortcutGroup | None:
-    """Parse a group element (supports nested groups, shortcuts, and content refs)."""
+    """Parse a group element (supports nested groups, shortcuts, content refs, and inputs)."""
     group_name = get_attr(elem, "name")
     label = get_attr(elem, "label")
     if not group_name or not label:
@@ -408,7 +505,7 @@ def _parse_shortcut_group(elem, path: str) -> ShortcutGroup | None:
 
     condition = get_attr(elem, "condition") or ""
     icon = get_attr(elem, "icon") or ""
-    items: list[Shortcut | ShortcutGroup | Content] = []
+    items: list[Shortcut | ShortcutGroup | Content | Input] = []
 
     for child in elem:
         if child.tag == "shortcut":
@@ -423,6 +520,10 @@ def _parse_shortcut_group(elem, path: str) -> ShortcutGroup | None:
             content = parse_content(child)
             if content:
                 items.append(content)
+        elif child.tag == "input":
+            input_item = _parse_input(child)
+            if input_item:
+                items.append(input_item)
 
     visible = get_attr(elem, "visible") or ""
     return ShortcutGroup(
@@ -430,7 +531,7 @@ def _parse_shortcut_group(elem, path: str) -> ShortcutGroup | None:
     )
 
 
-def _parse_shortcut(elem, path: str) -> Shortcut | None:
+def _parse_shortcut(elem, _path: str) -> Shortcut | None:
     """Parse a shortcut element.
 
     Supports two modes:
@@ -460,6 +561,25 @@ def _parse_shortcut(elem, path: str) -> Shortcut | None:
         icon=get_attr(elem, "icon") or "DefaultShortcut.png",
         condition=get_attr(elem, "condition") or "",
         visible=get_attr(elem, "visible") or "",
+    )
+
+
+def _parse_input(elem) -> Input | None:
+    """Parse an input element.
+
+    Schema: <input label="Custom action" type="text" for="action" />
+    """
+    label = get_attr(elem, "label")
+    if not label:
+        return None
+
+    return Input(
+        label=label,
+        type=get_attr(elem, "type") or "text",
+        for_=get_attr(elem, "for") or "action",
+        condition=get_attr(elem, "condition") or "",
+        visible=get_attr(elem, "visible") or "",
+        icon=get_attr(elem, "icon") or "DefaultFile.png",
     )
 
 

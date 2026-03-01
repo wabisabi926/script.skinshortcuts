@@ -60,4 +60,21 @@ Route property button click to appropriate handler based on property type from s
 | Method | Purpose |
 |--------|---------|
 | `_handle_toggle_property` | Toggle between "True" and cleared |
+| `_handle_text_property` | Free text input via keyboard dialog |
+| `_handle_number_property` | Numeric input via numeric input dialog |
 | `_handle_options_property` | Show options picker with condition filtering |
+
+***
+
+## Requires Checking
+
+### `_check_requires`(item, requires_name) → bool
+
+Check if a property requirement is satisfied. Used by property handlers to determine if a property can be set.
+
+For `widget` and `background` requirements, checks both the property itself and its path variant:
+- `widget` → checks `widget` OR `widgetPath`
+- `widget.2` → checks `widget.2` OR `widgetPath.2`
+- `background` → checks `background` OR `backgroundPath`
+
+This allows widgets set via shortcut picker (which set `widgetPath` but not `widget`) to satisfy requires checks.

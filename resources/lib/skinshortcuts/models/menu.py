@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Union
 
-    GroupContent = Union["Shortcut", "ShortcutGroup", "Content"]
+    GroupContent = Union["Shortcut", "ShortcutGroup", "Content", "Input"]
 
 
 @dataclass
@@ -28,6 +28,30 @@ class IconSource:
     condition: str = ""
     visible: str = ""
     icon: str = ""
+
+
+@dataclass
+class Input:
+    """User input prompt in groupings.
+
+    When selected in the picker, prompts the user for input via keyboard
+    and returns a shortcut with the entered value.
+
+    Attributes:
+        label: Display label in picker
+        type: Input method - "text", "numeric", "ipaddress", "password"
+        for_: What the input becomes - "action", "label", "path"
+        condition: Property condition (evaluated against item properties)
+        visible: Kodi visibility condition (evaluated at runtime)
+        icon: Optional icon for picker display
+    """
+
+    label: str
+    type: str = "text"
+    for_: str = "action"
+    condition: str = ""
+    visible: str = ""
+    icon: str = "DefaultFile.png"
 
 
 @dataclass
@@ -83,6 +107,24 @@ class Action:
 
     action: str
     condition: str = ""
+
+
+@dataclass
+class IncludeRef:
+    """A reference to an include, output as <include>name</include>.
+
+    Used with controltype menus to insert include references at specific
+    positions within the output control element.
+
+    Attributes:
+        name: The include name to reference
+        condition: Optional condition attribute on the include element
+        position: Where to place in output - "before-onclick", "after-onclick", or "end"
+    """
+
+    name: str
+    condition: str = ""
+    position: str = "end"
 
 
 @dataclass
@@ -193,6 +235,7 @@ class MenuItem:
     properties: dict[str, str] = field(default_factory=dict)
     submenu: str | None = None
     original_action: str = ""  # Set from defaults, not saved to userdata
+    includes: list[IncludeRef] = field(default_factory=list)
 
     @property
     def action(self) -> str:
@@ -233,6 +276,7 @@ class MenuDefaults:
 
     properties: dict[str, str] = field(default_factory=dict)
     actions: list[DefaultAction] = field(default_factory=list)
+    includes: list[IncludeRef] = field(default_factory=list)
 
 
 @dataclass
@@ -252,8 +296,14 @@ class Menu:
     items: list[MenuItem] = field(default_factory=list)
     defaults: MenuDefaults = field(default_factory=MenuDefaults)
     allow: MenuAllow = field(default_factory=MenuAllow)
-    container: str | None = None  # Container ID for submenu visibility
-    is_submenu: bool = False  # True if defined with <submenu> tag (not built as root include)
+    container: str | None = None
+    is_submenu: bool = False
+    menu_type: str | None = None
+    controltype: str = ""
+    startid: int = 1
+    template_only: str = ""  # "submenu"=skip combined submenu include
+    build: str = "true"
+    action: str = ""
 
     def get_item(self, item_name: str) -> MenuItem | None:
         """Get item by name."""
@@ -317,9 +367,14 @@ class SubDialog:
     is spawned with the given mode. The mode is set as a window property
     to control visibility of different panels in the skin XML.
 
+    Alternatively, if `menu` is specified without `mode`, the menu is opened
+    directly without spawning an intermediate subdialog.
+
     Attributes:
         button_id: The button ID that triggers this sub-dialog
         mode: The mode name set in Window.Property(skinshortcuts-dialog)
+        menu: Menu to open directly (supports {item} placeholder). When set
+            without mode, opens the menu immediately without intermediate dialog.
         setfocus: Optional control ID to focus when the sub-dialog opens
         suffix: Property suffix for this widget slot (e.g., ".2" for widget 2).
             When set, all property reads/writes are automatically suffixed,
@@ -329,7 +384,8 @@ class SubDialog:
     """
 
     button_id: int
-    mode: str
+    mode: str = ""
+    menu: str = ""
     setfocus: int | None = None
     suffix: str = ""
     onclose: list[OnCloseAction] = field(default_factory=list)
@@ -356,7 +412,7 @@ class MenuConfig:
     """Menu configuration including menus, groupings, and icon sources."""
 
     menus: list[Menu] = field(default_factory=list)
-    groupings: list[ShortcutGroup] = field(default_factory=list)
+    groupings: list[Shortcut | ShortcutGroup | Content | Input] = field(default_factory=list)
     icon_sources: list[IconSource] = field(default_factory=list)
     subdialogs: list[SubDialog] = field(default_factory=list)
     action_overrides: list[ActionOverride] = field(default_factory=list)

@@ -34,6 +34,7 @@ class ResolvedShortcut:
     label2: str = ""
     action_play: str = ""
     action_party: str = ""
+    content_type: str = ""
 
 
 def scan_playlist_files(directory: str) -> list[tuple[str, str]]:
@@ -116,11 +117,10 @@ class ContentProvider:
 
         media_map = {
             "video": "video",
-            "videos": "video",
             "music": "music",
-            "audio": "music",
             "pictures": "pictures",
-            "images": "pictures",
+            "files": "files",
+            "programs": "programs",
         }
         media = media_map.get(target, "video")
 
@@ -129,11 +129,13 @@ class ContentProvider:
             return []
 
         window_map = {
-            "video": "Videos",
-            "music": "Music",
-            "pictures": "Pictures",
+            "video": "videos",
+            "music": "music",
+            "pictures": "pictures",
+            "files": "files",
+            "programs": "programs",
         }
-        window = window_map.get(media, "Videos")
+        window = window_map.get(media, "videos")
 
         shortcuts = []
         for source in result["sources"]:
@@ -176,25 +178,22 @@ class ContentProvider:
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        # Kodi stores playlists in video/, music/, and mixed/ subdirectories
         if custom_path:
             paths = [custom_path]
         else:
             base = self._get_playlists_base_path()
-            if target in ("video", "videos"):
+            if target == "video":
                 paths = [f"{base}video/", f"{base}mixed/"]
-            elif target in ("audio", "music"):
+            elif target == "music":
                 paths = [f"{base}music/", f"{base}mixed/"]
             else:
                 paths = [f"{base}video/", f"{base}music/", f"{base}mixed/"]
 
         window_map = {
-            "video": "Videos",
-            "videos": "Videos",
-            "audio": "Music",
-            "music": "Music",
+            "video": "videos",
+            "music": "music",
         }
-        default_window = window_map.get(target, "Videos")
+        default_window = window_map.get(target, "videos")
 
         shortcuts = []
         for path in paths:
@@ -224,9 +223,9 @@ class ContentProvider:
                 if playlist_name:
                     display_label = playlist_name
                 if playlist_type in music_types:
-                    window = "Music"
+                    window = "music"
                 elif playlist_type in video_types:
-                    window = "Videos"
+                    window = "videos"
 
             if filter_video and playlist_type and playlist_type not in video_types:
                 continue
@@ -234,7 +233,7 @@ class ContentProvider:
                 continue
 
             action_party = ""
-            if window == "Music":
+            if window == "music":
                 action_party = f"PlayerControl(PartyMode({filepath}))"
 
             shortcuts.append(
@@ -244,6 +243,7 @@ class ContentProvider:
                     icon="DefaultPlaylist.png",
                     action_play=f"PlayMedia({filepath})",
                     action_party=action_party,
+                    content_type=playlist_type,
                 )
             )
 
@@ -257,8 +257,10 @@ class ContentProvider:
         """
         try:
             f = xbmcvfs.File(filepath)
-            content = f.read()
-            f.close()
+            try:
+                content = f.read()
+            finally:
+                f.close()
 
             import xml.etree.ElementTree as ET
 
@@ -287,13 +289,21 @@ class ContentProvider:
             "audio": "audio",
             "music": "audio",
             "image": "image",
-            "images": "image",
             "pictures": "image",
-            "program": "executable",
-            "programs": "executable",
             "executable": "executable",
+            "programs": "executable",
+            "game": "game",
+            "games": "game",
         }
         content = content_map.get(target, "video")
+
+        window_map = {
+            "video": "videos",
+            "audio": "music",
+            "image": "pictures",
+            "executable": "programs",
+            "game": "games",
+        }
 
         result = self._jsonrpc(
             "Addons.GetAddons",
@@ -313,10 +323,16 @@ class ContentProvider:
             thumb = addon.get("thumbnail", "")
 
             if addon_id:
+                if content == "executable":
+                    action = f"RunAddon({addon_id})"
+                else:
+                    window = window_map.get(content, "videos")
+                    action = f"ActivateWindow({window},plugin://{addon_id}/,return)"
+
                 shortcuts.append(
                     ResolvedShortcut(
                         label=name,
-                        action=f"RunAddon({addon_id})",
+                        action=action,
                         icon=thumb or "DefaultAddon.png",
                     )
                 )
@@ -537,7 +553,7 @@ class ContentProvider:
         # Normalize for Kodi library path (uses "video" not "videos")
         lib_type = "video" if target_lower in ("video", "videos") else "music"
         base_path = f"special://xbmc/system/library/{lib_type}/"
-        window = "Videos" if lib_type == "video" else "Music"
+        window = "videos" if lib_type == "video" else "music"
 
         shortcuts = []
         try:
@@ -576,8 +592,10 @@ class ContentProvider:
         """
         try:
             f = xbmcvfs.File(index_file)
-            content = f.read()
-            f.close()
+            try:
+                content = f.read()
+            finally:
+                f.close()
 
             if not content:
                 return "", "", 999
@@ -617,7 +635,7 @@ class ContentProvider:
         if not result or "genres" not in result:
             return []
 
-        window = "Videos"
+        window = "videos"
         db_type = "movies" if media_type == "movie" else "tvshows"
 
         shortcuts = []
@@ -661,24 +679,13 @@ class ContentProvider:
     def _get_video_years(self, media_type: str) -> list[ResolvedShortcut]:
         """Get years from video library."""
         if media_type == "movie":
-            result = self._jsonrpc(
-                "VideoLibrary.GetMovies", {"properties": ["year"], "limits": {"end": 0}}
-            )
+            result = self._jsonrpc("VideoLibrary.GetMovies", {"properties": ["year"]})
             items = result.get("movies", []) if result else []
             db_type = "movies"
         else:
-            result = self._jsonrpc(
-                "VideoLibrary.GetTVShows", {"properties": ["year"], "limits": {"end": 0}}
-            )
-            items = result.get("tvshows", []) if result else []
-            db_type = "tvshows"
-
-        if media_type == "movie":
-            result = self._jsonrpc("VideoLibrary.GetMovies", {"properties": ["year"]})
-            items = result.get("movies", []) if result else []
-        else:
             result = self._jsonrpc("VideoLibrary.GetTVShows", {"properties": ["year"]})
             items = result.get("tvshows", []) if result else []
+            db_type = "tvshows"
 
         years = sorted(
             {item.get("year", 0) for item in items if item.get("year", 0) > 0},

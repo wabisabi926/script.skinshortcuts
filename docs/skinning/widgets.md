@@ -2,7 +2,7 @@
 
 The `widgets.xml` file defines widgets that users can assign to menu items.
 
-***
+---
 
 ## Table of Contents
 
@@ -14,8 +14,9 @@ The `widgets.xml` file defines widgets that users can assign to menu items.
 * [Conditions](#conditions)
 * [Output Properties](#output-properties)
 * [Multiple Widgets](#multiple-widgets)
+* [Standalone Widget Picker](#standalone-widget-picker)
 
-***
+---
 
 ## File Structure
 
@@ -23,7 +24,7 @@ Widgets and groups are defined directly at the root level:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<widgets showGetMore="true">
+<widgets>
   <!-- Flat widget (appears ungrouped in picker) -->
   <widget name="favourites" label="Favourites" type="videos">
     <path>favourites://</path>
@@ -38,7 +39,7 @@ Widgets and groups are defined directly at the root level:
 </widgets>
 ```
 
-***
+---
 
 ## Widget Element
 
@@ -90,7 +91,7 @@ Widgets and groups are defined directly at the root level:
 <path>plugin://plugin.video.example/?action=list</path>
 ```
 
-***
+---
 
 ## Widget Types
 
@@ -124,7 +125,7 @@ Custom widgets let users define their own item list:
 
 When selected, the dialog opens an item editor for the custom menu.
 
-***
+---
 
 ## Groups
 
@@ -174,7 +175,7 @@ Groups can contain:
 * `<group>` - Nested groups
 * `<content>` - Dynamic content
 
-***
+---
 
 ## Dynamic Content
 
@@ -212,7 +213,7 @@ The `nodes` source provides access to library navigation nodes (the top-level li
 | `videos` | Video library nodes (Movies, TV Shows, Music Videos, etc.) |
 | `music` | Music library nodes (Artists, Albums, Songs, etc.) |
 
-***
+---
 
 ### Library Source
 
@@ -250,7 +251,7 @@ The `library` source provides access to library database content (genres, years,
 | `artists` | Music artists |
 | `albums` | Music albums |
 
-***
+---
 
 ## Conditions
 
@@ -290,7 +291,7 @@ Evaluated at runtime using `xbmc.getCondVisibility()`:
 
 Both conditions must pass for the widget to appear.
 
-***
+---
 
 ## Output Properties
 
@@ -318,7 +319,9 @@ Access via `ListItem.Property(name)`:
 </control>
 ```
 
-***
+> **See also:** [Built-in Properties](builtin-properties.md) for complete property reference
+
+---
 
 ## Multiple Widgets
 
@@ -351,12 +354,60 @@ Display additional widgets:
 </control>
 ```
 
-***
+---
 
-## Quick Navigation
+## Standalone Widget Picker
 
-[Back to Top](#widget-configuration)
+The widget picker can be used outside the management dialog to store a selected widget directly in Kodi skin strings. This is useful for standalone screens (e.g., hub windows) where widgets aren't tied to menu items.
 
-**Sections:** [File Structure](#file-structure) | [Widget Element](#widget-element) | [Widget Types](#widget-types) | [Groups](#groups) | [Dynamic Content](#dynamic-content) | [Conditions](#conditions) | [Output Properties](#output-properties) | [Multiple Widgets](#multiple-widgets)
+### RunScript Call
 
-**Related Docs:** [Menus](menus.md) | [Backgrounds](backgrounds.md) | [Properties](properties.md) | [Templates](templates.md) | [Conditions](conditions.md)
+```xml
+<onclick>RunScript(script.skinshortcuts,type=skinstring&amp;skinPath=MyWidgetPath&amp;skinLabel=MyWidgetLabel&amp;skinType=MyWidgetType&amp;skinTarget=MyWidgetTarget)</onclick>
+```
+
+This opens the same widget picker used by the management dialog, driven by the skin's `widgets.xml`.
+
+### Parameters
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `type=skinstring` | Yes | Opens the standalone widget picker |
+| `path` | No | Custom shortcuts path (defaults to skin's shortcuts folder) |
+| `skinPath` | No | Skin string name to store widget path |
+| `skinLabel` | No | Skin string name to store widget label |
+| `skinType` | No | Skin string name to store widget type |
+| `skinTarget` | No | Skin string name to store widget target |
+
+### Behavior
+
+- **Select widget:** Sets each provided skin string via `Skin.SetString()`
+- **Select "None":** Clears all provided skin strings via `Skin.Reset()`
+- **Cancel:** No changes
+
+The "None" option is always shown at the top of the picker.
+
+### Skin XML Usage
+
+```xml
+<!-- Button to pick a widget -->
+<control type="button">
+  <label>Choose Widget</label>
+  <onclick>RunScript(script.skinshortcuts,type=skinstring&amp;skinPath=HubWidget1.Path&amp;skinLabel=HubWidget1.Label&amp;skinType=HubWidget1.Type&amp;skinTarget=HubWidget1.Target)</onclick>
+</control>
+
+<!-- Display the selected widget -->
+<control type="list" id="5000">
+  <content target="$INFO[Skin.String(HubWidget1.Target)]">$INFO[Skin.String(HubWidget1.Path)]</content>
+  <visible>!String.IsEmpty(Skin.String(HubWidget1.Path))</visible>
+</control>
+
+<!-- Show selected widget name -->
+<control type="label">
+  <label>$INFO[Skin.String(HubWidget1.Label)]</label>
+</control>
+```
+
+---
+
+[↑ Top](#widget-configuration) · [Skinning Docs](index.md)

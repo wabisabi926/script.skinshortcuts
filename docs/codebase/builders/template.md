@@ -13,13 +13,12 @@ Processes templates defined in templates.xml, iterating over menu items and gene
 
 ## TemplateBuilder Class
 
-### `__init__`(schema, menus, container="9000", property_schema=None)
+### `__init__`(schema, menus, property_schema=None)
 
 | Parameter | Description |
 |-----------|-------------|
 | `schema` | TemplateSchema from templates.xml |
 | `menus` | list[Menu] to build from |
-| `container` | Container ID for visibility conditions |
 | `property_schema` | Optional PropertySchema for fallbacks |
 
 ### build() → ET.Element
@@ -59,11 +58,12 @@ Property context built in order (later overrides earlier):
 
 1. Menu defaults + item properties
 2. Built-ins: `index`, `name`, `menu`, `idprefix`, `id`, `suffix`
-3. Fallback values from PropertySchema
-4. Template properties
-5. Template vars (first matching condition wins)
-6. Preset references
-7. Property group references
+3. Item attributes: `label`, `label2`, `icon`, `visible`, `path`
+4. Fallback values from PropertySchema
+5. Template properties
+6. Template vars (first matching condition wins)
+7. Preset references
+8. Property group references
 
 ***
 
@@ -73,7 +73,8 @@ Special elements processed within `<controls>`:
 
 | Element | Output |
 |---------|--------|
-| `<skinshortcuts>visibility</skinshortcuts>` | `<visible>` condition matching current item |
+| `<skinshortcuts>visibility</skinshortcuts>` | `<visible>` condition matching current item (per-item in menu mode). In raw mode (`build="true"`), generates OR'd visibility across matching items (per-group when properties are defined, all items when no properties) |
+| `<skinshortcuts>onclick</skinshortcuts>` | `<onclick>` elements from item actions (before/conditional/unconditional/after) |
 | `<skinshortcuts include="name" />` | Unwrapped include contents |
 | `<skinshortcuts include="name" wrap="true" />` | Kodi `<include>` element |
 | `<skinshortcuts include="name" condition="prop" />` | Conditional include |
@@ -105,10 +106,16 @@ Handles `<template items="name">` elements that iterate over submenu items.
 | `_apply_property_group` | Apply property group with suffix transforms |
 | `_apply_preset` | Apply preset values as properties |
 | `_process_controls` | Process controls XML with substitutions |
+| `_remove_empty_elements` | Remove leaf elements with no text/attributes |
 | `_substitute_text` | Substitute all dynamic expressions in text |
 | `_build_variable` | Build Kodi `<variable>` element |
 | `_build_variable_group` | Build variables from variableGroup reference |
+| `_handle_skinshortcuts_include` | Process include expansions |
 | `_handle_skinshortcuts_items` | Process items iteration |
+| `_handle_skinshortcuts_onclick` | Process onclick expansions |
+| `_collect_raw_matching_items` | Collect menu items matching a raw template's filters |
+| `_substitute_raw_controls` | Substitute $PROPERTY/$EXP/$MATH/$IF in raw controls (preserves visibility markers) |
+| `_resolve_raw_visibility` | Replace visibility markers with OR'd conditions for an item group |
 | `_eval_condition` | Evaluate condition against item |
 
 ***

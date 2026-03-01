@@ -191,6 +191,7 @@ shortcuts/
 | N/A                                                      | `<submenu name="...">` for explicit submenu structure              |
 | N/A                                                      | `<menu name="...">` for standalone menus                           |
 | N/A                                                      | `<allow/>` (optional, all attributes default to true)              |
+| Per-menu shortcuts via `grouping="..."` attribute         | `<groupings menu="...">` for menu-specific groupings               |
 
 ### Global Overrides
 
@@ -285,7 +286,7 @@ Items with `required="true"` cannot be deleted by users.
 ### v3 (widgets.xml)
 
 ```xml
-<widgets showGetMore="true">
+<widgets>
   <group name="movies" label="Movies" icon="DefaultMovies.png" visible="Library.HasContent(movies)">
     <widget name="recent-movies" label="Recently Added" type="movies" icon="DefaultRecentlyAddedMovies.png">
       <path>videodb://recentlyaddedmovies/</path>
@@ -644,7 +645,14 @@ Items templates iterate over submenu items. They are defined separately and refe
 | `type=manage&group=mainmenu` | `type=manage&menu=mainmenu`             |
 | `type=buildxml&group=...`    | `type=buildxml` (no group param needed) |
 | `type=resetall`              | `type=resetall` (unchanged)             |
-| N/A                          | `type=clear&menu=mainmenu` (new)        |
+| N/A                          | `type=resetmenus` (new)                 |
+| N/A                          | `type=resetviews` (new)                 |
+| N/A                          | `type=resetsubmenus` (new)              |
+| N/A                          | `type=reset&menu=X` (new)               |
+| N/A                          | `type=reset&menu=X&submenus=true` (new) |
+| N/A                          | `type=viewselect` (new)                 |
+| N/A                          | `type=clear&menu=X&item=Y` (new)        |
+| `type=widgets&showNone=true`  | `type=skinstring` (see below)           |
 
 ### v2
 
@@ -657,6 +665,34 @@ Items templates iterate over submenu items. They are defined separately and refe
 ```xml
 <onclick>RunScript(script.skinshortcuts,type=manage,menu=mainmenu)</onclick>
 ```
+
+### Standalone Widget Picker
+
+v2's `type=widgets` (with `showNone`, `skinWidget*` params) is replaced by `type=skinstring`:
+
+**v2:**
+
+```xml
+<onclick>RunScript(script.skinshortcuts,type=widgets&amp;showNone=true&amp;skinWidgetName=MyLabel&amp;skinWidgetPath=MyPath&amp;skinWidgetType=MyType&amp;skinWidgetTarget=MyTarget)</onclick>
+```
+
+**v3:**
+
+```xml
+<onclick>RunScript(script.skinshortcuts,type=skinstring&amp;skinLabel=MyLabel&amp;skinPath=MyPath&amp;skinType=MyType&amp;skinTarget=MyTarget)</onclick>
+```
+
+| v2 Parameter | v3 Parameter |
+|--------------|--------------|
+| `type=widgets` | `type=skinstring` |
+| `showNone=true` | Always enabled |
+| `skinWidget` | Removed (widget name not stored to skin string) |
+| `skinWidgetName` | `skinLabel` |
+| `skinWidgetPath` | `skinPath` |
+| `skinWidgetType` | `skinType` |
+| `skinWidgetTarget` | `skinTarget` |
+
+See [Standalone Widget Picker](skinning/widgets.md#standalone-widget-picker) for full documentation.
 
 ***
 
@@ -711,17 +747,17 @@ Remove these controls from your dialog XML.
 | `groupname`                | ✓   | Renamed to `menuname`         |
 | `groupDisplayName`         | ✓   | Removed                       |
 | `menuname`                 | —   | ✓ (new, replaces `groupname`) |
-| `allowWidgets`             | —   | ✓ (new)                       |
-| `allowBackgrounds`         | —   | ✓ (new)                       |
-| `allowSubmenus`            | —   | ✓ (new)                       |
+| `disableWidgets`           | —   | ✓ (new) - `true` if disabled  |
+| `disableBackgrounds`       | —   | ✓ (new) - `true` if disabled  |
+| `disableSubmenus`          | —   | ✓ (new) - `true` if disabled  |
 | `skinshortcuts-hasdeleted` | —   | ✓ (new)                       |
 
-### Home Window Properties (v3 only)
+### Dialog Window Properties (v3 only)
 
-| Property               | Description             |
-| ---------------------- | ----------------------- |
-| `skinshortcuts-dialog` | Current subdialog mode  |
-| `skinshortcuts-suffix` | Current property suffix |
+| Property               | Description                            |
+| ---------------------- | -------------------------------------- |
+| `skinshortcuts-dialog` | Current subdialog mode (dialog-scoped) |
+| `skinshortcuts-suffix` | Property suffix (dialog-scoped)        |
 
 ***
 

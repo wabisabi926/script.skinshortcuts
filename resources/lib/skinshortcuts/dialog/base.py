@@ -112,11 +112,7 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
 
         self._shared_subdialogs = kwargs.get("subdialogs")
         self._subdialogs = {}
-
-        # Dialog mode sets Window.Property(skinshortcuts-dialog) for skin conditionals
         self.dialog_mode = kwargs.get("dialog_mode", "")
-
-        # Suffix applied to widget properties for multi-slot support (e.g., ".2")
         self.property_suffix = kwargs.get("property_suffix", "")
 
         self._setfocus = kwargs.get("setfocus")
@@ -201,14 +197,10 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
                 self.show_context_menu = menu_config.show_context_menu
                 self._subdialogs = {sd.button_id: sd for sd in menu_config.subdialogs}
 
-        home = xbmcgui.Window(10000)
-        if not self.is_child:
-            home.clearProperty("skinshortcuts-dialog")
-            home.clearProperty("skinshortcuts-suffix")
         if self.property_suffix:
-            home.setProperty("skinshortcuts-suffix", self.property_suffix)
+            self.setProperty("skinshortcuts-suffix", self.property_suffix)
         if self.dialog_mode:
-            home.setProperty("skinshortcuts-dialog", self.dialog_mode)
+            self.setProperty("skinshortcuts-dialog", self.dialog_mode)
 
         self._load_items()
         self._log(f"Loaded {len(self.items)} items for menu '{self.menu_id}'")
@@ -231,14 +223,22 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
         if self.manager:
             self.items = self.manager.get_menu_items(self.menu_id)
 
-            if not self.items and self.dialog_mode.startswith("custom-"):
-                default_item = MenuItem(
-                    name=f"user-{self.menu_id[:8]}",
-                    label="New Item",
-                    icon="DefaultFolder.png",
-                )
-                self.items.append(default_item)
-                self._log(f"Added default item to empty custom menu: {self.menu_id}")
+            if not self.items:
+                menu = self.manager.working.get(self.menu_id)
+                is_empty_submenu = menu and menu.is_submenu
+                is_custom_widget = self.dialog_mode.startswith("custom-")
+
+                if is_empty_submenu or is_custom_widget:
+                    if self.menu_id.startswith("user-"):
+                        menu_suffix = self.menu_id[5:]
+                    else:
+                        menu_suffix = self.menu_id
+                    default_item = MenuItem(
+                        name=f"sub-{menu_suffix[:8]}",
+                        label="New Item",
+                        icon="DefaultFolder.png",
+                    )
+                    self.items.append(default_item)
 
     def _display_items(self) -> None:
         """Display items in the list control. Called once during onInit."""
@@ -260,7 +260,12 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
 
         subdialog_list.reset()
 
-        item = self._get_selected_item()
+        # Use _selected_index directly - list control may not have updated yet after selectItem()
+        item = None
+        if self._selected_index is not None and 0 <= self._selected_index < len(self.items):
+            item = self.items[self._selected_index]
+        else:
+            item = self._get_selected_item()
         if item:
             listitem = self._create_listitem(item)
             subdialog_list.addItem(listitem)
@@ -317,18 +322,21 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
             listitem.setArt({"thumb": item.icon, "icon": item.icon})
 
         widget_name = item.properties.get("widget", "")
-        if widget_name:
+        has_widget = bool(widget_name or item.properties.get("widgetPath"))
+        if has_widget:
             listitem.setProperty("widget", widget_name)
             listitem.setProperty("widgetLabel", item.properties.get("widgetLabel", ""))
             listitem.setProperty("widgetPath", item.properties.get("widgetPath", ""))
             listitem.setProperty("widgetType", item.properties.get("widgetType", ""))
             listitem.setProperty("widgetTarget", item.properties.get("widgetTarget", ""))
+            listitem.setProperty("widgetSource", item.properties.get("widgetSource", ""))
         else:
             listitem.setProperty("widget", "")
             listitem.setProperty("widgetLabel", "")
             listitem.setProperty("widgetPath", "")
             listitem.setProperty("widgetType", "")
             listitem.setProperty("widgetTarget", "")
+            listitem.setProperty("widgetSource", "")
 
         background_name = item.properties.get("background", "")
         if background_name:
@@ -347,6 +355,7 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
                 "widgetPath",
                 "widgetType",
                 "widgetTarget",
+                "widgetSource",
                 "widgetLabel",
                 "background",
                 "backgroundLabel",
@@ -355,13 +364,12 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
                 "label",
             ):
                 continue
-            # Skip widget properties for empty widget slots (no fallback display)
             if prop_name.startswith("widget"):
                 if "." in prop_name:
                     suffix = "." + prop_name.split(".", 1)[-1]
                     slot_widget = item.properties.get(f"widget{suffix}", "")
                 else:
-                    slot_widget = widget_name
+                    slot_widget = has_widget
                 if not slot_widget:
                     listitem.setProperty(prop_name, "")
                     listitem.setProperty(f"{prop_name}Label", "")
@@ -416,7 +424,17 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
             return -1
 
     def _get_selected_item(self) -> MenuItem | None:
-        """Get the currently selected MenuItem."""
+        """Get the currently selected MenuItem.
+
+        In subdialog mode, uses _selected_index (the item being edited) rather
+        than querying Container 211 which may have different focus.
+        """
+        if (
+            self.dialog_mode
+            and self._selected_index is not None
+            and 0 <= self._selected_index < len(self.items)
+        ):
+            return self.items[self._selected_index]
         index = self._get_selected_index()
         if 0 <= index < len(self.items):
             return self.items[index]
@@ -502,9 +520,15 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
                 menu = self.manager.config.get_menu(self.menu_id)
                 if menu:
                     allow = menu.allow
-                    self.setProperty("allowWidgets", "true" if allow.widgets else "false")
-                    self.setProperty("allowBackgrounds", "true" if allow.backgrounds else "false")
-                    self.setProperty("allowSubmenus", "true" if allow.submenus else "false")
+                    self.setProperty("disableWidgets", "true" if not allow.widgets else "")
+                    self.setProperty("disableBackgrounds", "true" if not allow.backgrounds else "")
+                    self.setProperty("disableSubmenus", "true" if not allow.submenus else "")
+
+                    if menu.is_submenu:
+                        menu_type = menu.menu_type or "submenu"
+                    else:
+                        menu_type = ""
+                    self.setProperty("skinshortcuts-menutype", menu_type)
 
             self._update_deleted_property()
 

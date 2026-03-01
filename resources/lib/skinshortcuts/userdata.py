@@ -86,18 +86,67 @@ def _item_override_to_dict(item: MenuItemOverride) -> dict[str, Any]:
 
 @dataclass
 class UserData:
-    """All user customizations for a skin."""
+    """All user customizations for a skin.
+
+    The views field stores user view selections:
+    source -> content -> view_id
+    Sources are: 'library', 'plugins', or 'plugin.video.X' for specific plugins.
+    """
 
     menus: dict[str, MenuOverride] = field(default_factory=dict)
+    views: dict[str, dict[str, str]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
-        return {
-            "menus": {
+        result: dict[str, Any] = {}
+        if self.menus:
+            result["menus"] = {
                 menu_id: _menu_override_to_dict(override)
                 for menu_id, override in self.menus.items()
             }
-        }
+        if self.views:
+            result["views"] = self.views
+        return result
+
+    def get_view(self, source: str, content: str) -> str | None:
+        """Get user's selected view for a source and content type."""
+        source_views = self.views.get(source)
+        if source_views:
+            return source_views.get(content)
+        return None
+
+    def set_view(self, source: str, content: str, view_id: str) -> None:
+        """Set user's view selection for a source and content type."""
+        if source not in self.views:
+            self.views[source] = {}
+        self.views[source][content] = view_id
+
+    def clear_view(self, source: str, content: str) -> None:
+        """Clear user's view selection for a source and content type."""
+        if source in self.views:
+            self.views[source].pop(content, None)
+            if not self.views[source]:
+                del self.views[source]
+
+    def clear_all_views(self) -> None:
+        """Clear all view selections."""
+        self.views.clear()
+
+    def get_addon_overrides(self, content: str) -> dict[str, str]:
+        """Get all addon-specific view overrides for a content type.
+
+        Returns dict of addon_id -> view_id for addons with custom selections.
+        Includes any source that isn't 'library' or 'plugins' (generic).
+        """
+        overrides = {}
+        for source, selections in self.views.items():
+            if source not in ("library", "plugins") and content in selections:
+                overrides[source] = selections[content]
+        return overrides
+
+    def get_plugin_overrides(self, content: str) -> dict[str, str]:
+        """Alias for get_addon_overrides for backward compatibility."""
+        return self.get_addon_overrides(content)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> UserData:
@@ -119,7 +168,8 @@ class UserData:
                 items.append(MenuItemOverride(**item_data, actions=actions))
             removed = menu_data.get("removed", [])
             menus[menu_id] = MenuOverride(items=items, removed=removed)
-        return cls(menus=menus)
+        views: dict[str, dict[str, str]] = data.get("views", {})
+        return cls(menus=menus, views=views)
 
 
 def load_userdata(path: str | None = None) -> UserData:
@@ -195,6 +245,12 @@ def merge_menu(default_menu: Menu, override: MenuOverride | None) -> Menu:
             container=default_menu.container,
             allow=default_menu.allow,
             is_submenu=default_menu.is_submenu,
+            menu_type=default_menu.menu_type,
+            controltype=default_menu.controltype,
+            startid=default_menu.startid,
+            template_only=default_menu.template_only,
+            build=default_menu.build,
+            action=default_menu.action,
         )
 
     items: list[MenuItem] = []
@@ -216,8 +272,6 @@ def merge_menu(default_menu: Menu, override: MenuOverride | None) -> Menu:
     for new_item in new_items:
         items.append(_create_item_from_override(new_item))
 
-    # Reorder: items with explicit positions go to exact index,
-    # others fill remaining slots in original order
     positioned_items: dict[int, MenuItem] = {}
     unpositioned_items: list[MenuItem] = []
 
@@ -231,14 +285,19 @@ def merge_menu(default_menu: Menu, override: MenuOverride | None) -> Menu:
     final_items: list[MenuItem] = []
     unpos_iter = iter(unpositioned_items)
 
-    for i in range(len(items)):
+    if positioned_items:
+        max_pos = max(positioned_items.keys()) + 1
+    else:
+        max_pos = len(items)
+
+    for i in range(max_pos):
         if i in positioned_items:
             final_items.append(positioned_items[i])
         else:
             try:
                 final_items.append(next(unpos_iter))
             except StopIteration:
-                break
+                continue
 
     for item in unpos_iter:
         final_items.append(item)
@@ -250,6 +309,12 @@ def merge_menu(default_menu: Menu, override: MenuOverride | None) -> Menu:
         container=default_menu.container,
         allow=default_menu.allow,
         is_submenu=default_menu.is_submenu,
+        menu_type=default_menu.menu_type,
+        controltype=default_menu.controltype,
+        startid=default_menu.startid,
+        template_only=default_menu.template_only,
+        build=default_menu.build,
+        action=default_menu.action,
     )
 
 
@@ -269,6 +334,7 @@ def _apply_override(item: MenuItem, override: MenuItemOverride) -> MenuItem:
         properties={**item.properties, **override.properties},
         submenu=item.submenu,
         original_action=item.action,  # Store original for protection matching
+        includes=item.includes,
     )
 
 
@@ -279,5 +345,6 @@ def _create_item_from_override(override: MenuItemOverride) -> MenuItem:
         label=override.label or "",
         actions=override.actions or [Action(action="noop")],
         icon=override.icon or "DefaultShortcut.png",
+        disabled=override.disabled or False,
         properties=override.properties,
     )

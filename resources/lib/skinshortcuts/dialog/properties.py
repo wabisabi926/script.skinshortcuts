@@ -164,6 +164,7 @@ class PropertiesMixin:
     manager: MenuManager | None
     property_schema: PropertySchema | None
     property_suffix: str
+    dialog_mode: str
 
     if TYPE_CHECKING:
 
@@ -196,7 +197,6 @@ class PropertiesMixin:
             items: list[WidgetGroup | Widget],
             item_props: dict[str, str],
             slot: str = "",
-            show_get_more: bool = True,
         ) -> Widget | None | Literal[False]: ...
 
         def _pick_widget_flat(
@@ -215,6 +215,36 @@ class PropertiesMixin:
         def _pick_background(
             self, item_props: dict[str, str], current_value: str = ""
         ) -> Background | None | Literal[False]: ...
+
+    def _check_requires(self, item: MenuItem, requires_name: str) -> bool:
+        """Check if a required property is satisfied.
+
+        For widget/background requirements, also accepts the Path variant
+        as proof the property is configured (e.g., widgetPath for widget).
+
+        Args:
+            item: The menu item to check
+            requires_name: The required property name (e.g., "widget", "widget.2")
+
+        Returns:
+            True if requirement is satisfied, False otherwise
+        """
+        if item.properties.get(requires_name, ""):
+            return True
+
+        base_name = requires_name.split(".")[0] if "." in requires_name else requires_name
+        suffix = "." + requires_name.split(".", 1)[1] if "." in requires_name else ""
+
+        if base_name == "widget":
+            path_name = f"widgetPath{suffix}"
+            if item.properties.get(path_name, ""):
+                return True
+        elif base_name == "background":
+            path_name = f"backgroundPath{suffix}"
+            if item.properties.get(path_name, ""):
+                return True
+
+        return False
 
     def _handle_property_button(self, button_id: int) -> bool:
         """Handle a property button click from the schema.
@@ -241,8 +271,7 @@ class PropertiesMixin:
             requires_name = requires
             if button.suffix and self.property_suffix:
                 requires_name = f"{requires}{self.property_suffix}"
-            required_value = item.properties.get(requires_name, "")
-            if not required_value:
+            if not self._check_requires(item, requires_name):
                 xbmcgui.Dialog().notification(
                     "Not Available",
                     f"Requires {requires_name} to be set first",
@@ -263,6 +292,12 @@ class PropertiesMixin:
             return True
         if prop_type == "toggle":
             self._handle_toggle_property(prop, item, button, prop_name)
+            return True
+        if prop_type == "text":
+            self._handle_text_property(item, button, prop_name)
+            return True
+        if prop_type == "number":
+            self._handle_number_property(item, button, prop_name)
             return True
 
         return self._handle_options_property(prop, item, button, prop_name)
@@ -299,7 +334,7 @@ class PropertiesMixin:
 
         if widget_config.groupings:
             result = self._pick_widget_from_groups(
-                widget_config.groupings, item_props, slot, widget_config.show_get_more
+                widget_config.groupings, item_props, slot
             )
         else:
             widgets = self.manager.get_widgets()
@@ -316,6 +351,14 @@ class PropertiesMixin:
         else:
             self._log(f"Widget selected: {result.name}")
             self._set_widget_properties(item, prefix, result)
+
+            if self.dialog_mode in ("widgets", "customwidget"):
+                new_label = resolve_label(result.label)
+                self.manager.set_label(self.menu_id, item.name, new_label)
+                item.label = new_label
+                if result.icon:
+                    self.manager.set_icon(self.menu_id, item.name, result.icon)
+                    item.icon = result.icon
 
         self._refresh_selected_item()
 
@@ -484,7 +527,12 @@ class PropertiesMixin:
         """
         self._log(f"Setting custom background for {prefix}: {bg.name} -> {custom_path}")
 
-        label = custom_label if custom_label else resolve_label(bg.label)
+        if bg.type in (BackgroundType.BROWSE, BackgroundType.MULTI):
+            label = custom_label if custom_label else custom_path
+            value = custom_path
+        else:
+            label = custom_label if custom_label else resolve_label(bg.label)
+            value = bg.name
 
         related: dict[str, str | None] = {
             f"{prefix}Label": label,
@@ -494,7 +542,7 @@ class PropertiesMixin:
         if playlist_type:
             related[f"{prefix}PlaylistType"] = playlist_type
 
-        self._set_item_property(item, prefix, bg.name, related, apply_suffix=False)
+        self._set_item_property(item, prefix, value, related, apply_suffix=False)
 
     def _clear_background_properties(self, item: MenuItem, prefix: str) -> None:
         """Clear all background properties for a prefix."""
@@ -605,6 +653,39 @@ class PropertiesMixin:
             self._log(f"Toggling {prop_name} ON for item {item.name}")
             self._set_item_property(item, prop_name, "True", apply_suffix=False)
 
+        self._refresh_selected_item()
+
+    def _handle_text_property(self, item: MenuItem, button, prop_name: str) -> None:
+        """Handle a text-type property via keyboard input."""
+        current_value = resolve_label(item.properties.get(prop_name, ""))
+        title = resolve_label(button.title) if button.title else prop_name
+
+        keyboard = xbmc.Keyboard(current_value, title)
+        keyboard.doModal()
+        if not keyboard.isConfirmed():
+            return
+
+        new_value = keyboard.getText()
+        if new_value:
+            self._log(f"Setting text property {prop_name}={new_value} on item {item.name}")
+            self._set_item_property(item, prop_name, new_value, apply_suffix=False)
+        else:
+            self._log(f"Clearing text property {prop_name} on item {item.name}")
+            self._set_item_property(item, prop_name, None, apply_suffix=False)
+
+        self._refresh_selected_item()
+
+    def _handle_number_property(self, item: MenuItem, button, prop_name: str) -> None:
+        """Handle a number-type property via numeric input dialog."""
+        current_value = item.properties.get(prop_name, "")
+        title = resolve_label(button.title) if button.title else prop_name
+
+        result = xbmcgui.Dialog().input(title, current_value, type=xbmcgui.INPUT_NUMERIC)
+        if not result and result != "0":
+            return
+
+        self._log(f"Setting number property {prop_name}={result} on item {item.name}")
+        self._set_item_property(item, prop_name, result, apply_suffix=False)
         self._refresh_selected_item()
 
     def _handle_options_property(self, prop, item: MenuItem, button, prop_name: str) -> bool:

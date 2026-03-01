@@ -77,6 +77,11 @@ Defines menu structure, shortcut picker groupings, icon sources, and action over
     </group>
   </groupings>
 
+  <!-- Menu-specific groupings (replaces default for this menu) -->
+  <groupings menu="powermenu">
+    ...
+  </groupings>
+
   <icons>
     <source label="Skin Icons" icon="DefaultFolder.png" condition="..." visible="...">special://skin/extras/icons/</source>
     <source label="Browse...">browse</source>
@@ -147,7 +152,7 @@ Defines menu structure, shortcut picker groupings, icon sources, and action over
 Defines widgets and widget picker groupings.
 
 ```xml
-<widgets showGetMore="true">
+<widgets>
   <!-- Flat widget at root level -->
   <widget name="favourites" label="Favourites" type="videos" target="videos" icon="DefaultFavourites.png" source="library" condition="..." visible="...">
     <path>favourites://</path>
@@ -181,7 +186,7 @@ Defines widgets and widget picker groupings.
 
 | Element | Parent | Required Attributes | Optional Attributes | Description |
 |---------|--------|---------------------|---------------------|-------------|
-| `<widgets>` | — | — | `showGetMore` | Root element |
+| `<widgets>` | — | — | — | Root element |
 | `<widget>` | widgets/group | `name`, `label` | `type`, `target`, `icon`, `condition`, `visible`, `source`, `slot` | Widget definition |
 | `<path>` | widget | — | — | Content path (required except type="custom") |
 | `<limit>` | widget | — | — | Item limit |
@@ -437,7 +442,7 @@ Defines templates for generating skin includes. For detailed documentation, see 
       </value>
     </variable>
     <variableGroup name="menuVars">
-      <variable name="MenuLabel" />
+      <variable content="MenuLabel" />
       <variableGroup content="nestedVars" />
     </variableGroup>
   </variables>
@@ -538,8 +543,10 @@ Defines templates for generating skin includes. For detailed documentation, see 
 | `<include>` | includes | `name` | — | Include definition |
 | `<variables>` | templates/template | — | — | Variable definitions |
 | `<variable>` | variables | `name` | `condition`, `output` | Variable definition |
+| `<variable/>` | variableGroup | `content` | `condition` | Variable reference |
 | `<value>` | variable | — | `condition` | Variable value |
 | `<variableGroup>` | variables | `name` | — | Variable group definition |
+| `<variableGroup/>` | variableGroup | `content` | — | Nested group reference |
 | `<template>` | templates | — | `include`, `build`, `idprefix`, `templateonly`, `menu` | Template definition |
 | `<output>` | template | `include` | `idprefix`, `suffix` | Multi-output target |
 | `<condition>` | template | — | — | Template condition (ANDed) |
@@ -718,17 +725,17 @@ Clears a specific menu's user data.
 | Property | Description |
 |----------|-------------|
 | `menuname` | Current menu ID being edited |
-| `allowWidgets` | `true` if widgets enabled for this menu |
-| `allowBackgrounds` | `true` if backgrounds enabled for this menu |
-| `allowSubmenus` | `true` if submenus enabled for this menu |
+| `disableWidgets` | `true` if widgets disabled for this menu (empty if allowed) |
+| `disableBackgrounds` | `true` if backgrounds disabled for this menu (empty if allowed) |
+| `disableSubmenus` | `true` if submenus disabled for this menu (empty if allowed) |
 | `skinshortcuts-hasdeleted` | `true` if deleted items exist |
 
-### Home Window Properties
+### Dialog Window Properties
 
 | Property | Description |
 |----------|-------------|
-| `skinshortcuts-dialog` | Current subdialog mode |
-| `skinshortcuts-suffix` | Current property suffix (e.g., `.2`) |
+| `skinshortcuts-dialog` | Current subdialog mode (auto-clears on close) |
+| `skinshortcuts-suffix` | Current property suffix (e.g., `.2`) (auto-clears on close) |
 
 ***
 

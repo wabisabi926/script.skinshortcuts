@@ -39,6 +39,7 @@ Scan directory for playlist files (.xsp, .m3u, .m3u8, .pls). Returns (label, fil
 | `label2` | str | Secondary label |
 | `action_play` | str | PlayMedia action (playlists) |
 | `action_party` | str | Party mode action (music playlists) |
+| `content_type` | str | Content type from source (e.g., movies, tvshows from playlist) |
 
 When `action_play` is set, picker offers choice between display/play/party modes.
 
@@ -50,17 +51,19 @@ When `action_play` is set, picker offers choice between display/play/party modes
 
 Routes by `content.source`:
 
-| Source | Targets | Description |
-|--------|---------|-------------|
-| `sources` | video, music, pictures | Media sources via Files.GetSources |
-| `playlists` | video, audio | Playlist files from configured paths |
-| `addons` | video, audio, image, program | Installed addons via Addons.GetAddons |
-| `favourites` | - | User favourites via Favourites.GetFavourites |
-| `pvr` | tv, radio | PVR channels via PVR.GetChannels |
-| `commands` | - | System commands (quit, reboot, etc.) |
-| `settings` | - | Settings window shortcuts |
-| `library` | genres, years, studios, tags, actors, directors, artists, albums | Library database content |
-| `nodes` | video, music | Library navigation nodes from XML |
+| Source | Valid Targets | JSON-RPC Method |
+|--------|---------------|-----------------|
+| `sources` | video, music, pictures, files, programs | Files.GetSources |
+| `playlists` | video, music | Filesystem scan |
+| `addons` | video/videos, audio/music, image/pictures, executable/programs, game/games | Addons.GetAddons |
+| `favourites` | (none) | Favourites.GetFavourites |
+| `pvr` | tv, radio | PVR.GetChannels |
+| `commands` | (none) | Static list |
+| `settings` | (none) | Static list |
+| `library` | See [Library Target Values](#library-target-values) | VideoLibrary/AudioLibrary |
+| `nodes` | video, music | Filesystem (library XML) |
+
+For `addons`, both JSON-RPC content values and Kodi window names are accepted (e.g., `audio` or `music` both work).
 
 ### clear_cache()
 

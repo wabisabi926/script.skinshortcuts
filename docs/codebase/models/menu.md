@@ -35,6 +35,8 @@
 | `allow` | MenuAllow | Feature toggles (widgets, backgrounds, submenus) |
 | `container` | str | Container ID for visibility |
 | `is_submenu` | bool | True if from `<submenu>` tag |
+| `build` | str | Build mode: `"true"` (default) or `"auto"` |
+| `action` | str | Action to match for `build="auto"` |
 
 **Methods:** `get_item()`, `add_item()`, `remove_item()`, `move_item()`
 
@@ -71,7 +73,23 @@ Dynamic content reference resolved at runtime.
 |-------|------|-------------|
 | `source` | str | Content type: playlists, addons, library, sources, favourites, pvr |
 | `target` | str | Media context: videos, music, pictures |
+| `path` | str | Custom path override |
 | `folder` | str | Wrap items in subfolder |
+| `label` | str | Result label for addons placeholder |
+| `icon` | str | Icon override |
+| `condition` | str | Property condition |
+| `visible` | str | Kodi visibility condition |
+
+### Input
+
+User input prompt for custom values.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `label` | str | Display label in picker |
+| `type` | str | Input method: text, numeric, ipaddress, password |
+| `for_` | str | What value becomes: action, label, path |
+| `icon`, `condition`, `visible` | str | Display/filtering |
 
 ***
 
@@ -85,7 +103,7 @@ Dynamic content reference resolved at runtime.
 | `MenuDefaults` | Default properties and actions for menu |
 | `MenuAllow` | Feature toggles (widgets, backgrounds, submenus) |
 | `IconSource` | Icon picker source (label, path, condition) |
-| `SubDialog` | Subdialog definition (button_id, mode, suffix, onclose) |
+| `SubDialog` | Subdialog definition (button_id, mode, menu, suffix, onclose) |
 | `OnCloseAction` | Action on subdialog close |
 | `ActionOverride` | Action replacement rule |
 | `MenuConfig` | Top-level container for all menu config |

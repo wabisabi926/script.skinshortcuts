@@ -23,9 +23,9 @@ Load complete menu configuration. Returns MenuConfig containing:
 - `action_overrides` - Action replacement rules
 - `show_context_menu` - Context menu visibility
 
-### load_groupings(path) → list[ShortcutGroup]
+### load_groupings(path, menu_id="") → list[ShortcutGroup]
 
-Load just the shortcut groupings (for picker without full reload).
+Load shortcut groupings for the picker. If `menu_id` is provided, a `<groupings menu="...">` element takes priority over the default.
 
 ***
 
@@ -34,16 +34,40 @@ Load just the shortcut groupings (for picker without full reload).
 | Function | Parses |
 |----------|--------|
 | `_parse_menus` | `<menu>` and `<submenu>` elements |
-| `_parse_menu` | Single menu with items, defaults, allow |
-| `_parse_item` | Menu item with label, actions, properties, protection |
-| `_parse_defaults` | Menu-wide default properties and actions |
+| `_parse_menu` | Single menu with items, defaults, allow, controltype, startid |
+| `_parse_item` | Menu item with label, actions, properties, protection, includes |
+| `_parse_defaults` | Menu-wide default properties, actions, includes |
 | `_parse_allow` | Feature toggles (widgets, backgrounds, submenus) |
 | `_parse_groupings` | `<groupings>` element with groups/shortcuts |
-| `_parse_shortcut_group` | Group with nested groups, shortcuts, content |
+| `_parse_shortcut_group` | Group with nested groups, shortcuts, content, inputs |
 | `_parse_shortcut` | Shortcut in action or browse mode |
+| `_parse_input` | User input prompt element |
 | `_parse_icons` | Icon sources (simple path or advanced with conditions) |
 | `_parse_dialogs` | Subdialog definitions |
 | `_parse_overrides` | Action replacement rules |
+
+***
+
+## Special Handling
+
+### Multiple Visibility Elements
+
+When an item has multiple `<visible>` child elements, they are combined with ` + ` (AND operator in Kodi):
+
+```xml
+<!-- Input -->
+<visible>System.CanPowerDown</visible>
+<visible>!System.HasAlarm(shutdowntimer)</visible>
+
+<!-- Result: item.visible = "System.CanPowerDown + !System.HasAlarm(shutdowntimer)" -->
+```
+
+### Include Reference Positioning
+
+`<skinshortcuts include="...">` elements in items and defaults track position relative to `<action>` elements:
+
+- Before any action → `position = "before-onclick"`
+- After any action → `position = "after-onclick"`
 
 ***
 

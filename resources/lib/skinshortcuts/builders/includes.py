@@ -10,6 +10,8 @@ if TYPE_CHECKING:
     from ..models import Menu, MenuItem
     from ..models.property import PropertySchema
     from ..models.template import TemplateSchema
+    from ..models.views import ViewConfig
+    from ..userdata import UserData
 
 
 class IncludesBuilder:
@@ -20,10 +22,14 @@ class IncludesBuilder:
         menus: list[Menu],
         templates: TemplateSchema | None = None,
         property_schema: PropertySchema | None = None,
+        view_config: ViewConfig | None = None,
+        userdata: UserData | None = None,
     ):
         self.menus = menus
         self.templates = templates
         self.property_schema = property_schema
+        self.view_config = view_config
+        self.userdata = userdata
         self._menu_map: dict[str, Menu] = {m.name: m for m in menus}
 
     def build(self) -> ET.Element:
@@ -37,21 +43,56 @@ class IncludesBuilder:
         #
         # Submenus defined with <submenu> tag are never built as root includes,
         # even if deleted from the parent menu (they become orphaned).
+        #
+        # Menus with named submenu templates (e.g., <submenu name="powermenu">)
+        # don't get raw includes - only the template version is built.
+
+        template_menu_names: set[str] = set()
+        if self.templates:
+            for submenu_tpl in self.templates.submenus:
+                if submenu_tpl.name:
+                    template_menu_names.add(submenu_tpl.name)
+
+        auto_menus: list[Menu] = []
+        build_menus: list[Menu] = []
 
         for menu in self.menus:
             if menu.is_submenu:
                 continue
+            if menu.name in template_menu_names:
+                continue
+            if menu.build == "auto":
+                auto_menus.append(menu)
+            else:
+                build_menus.append(menu)
 
+        if auto_menus:
+            auto_names = {m.name for m in auto_menus}
+            all_actions = self._get_all_actions(auto_names)
+            build_menus.extend(
+                m for m in auto_menus if m.action and m.action.lower() in all_actions
+            )
+
+        for menu in build_menus:
             include = self._build_menu_include(menu)
             root.append(include)
 
-            submenu_include = self._build_submenu_include(menu)
-            if submenu_include is not None:
-                root.append(submenu_include)
+            if "submenu" not in menu.template_only:
+                submenu_include = self._build_submenu_include(menu)
+                if submenu_include is not None:
+                    root.append(submenu_include)
 
             custom_widget_includes = self._build_custom_widget_includes(menu)
             for cw_include in custom_widget_includes:
                 root.append(cw_include)
+
+        for menu in self.menus:
+            if not menu.is_submenu:
+                continue
+            if not menu.items:
+                continue
+            include = self._build_menu_include(menu)
+            root.append(include)
 
         if self.templates and self.templates.templates:
             from .template import TemplateBuilder
@@ -65,13 +106,21 @@ class IncludesBuilder:
             for template_include in template_root:
                 root.append(template_include)
 
+        if self.view_config and self.view_config.content_rules and self.userdata:
+            from .views import ViewExpressionBuilder
+
+            view_builder = ViewExpressionBuilder(self.view_config, self.userdata)
+            for expr in view_builder.build():
+                root.append(expr)
+
         return root
 
     def _build_menu_include(self, menu: Menu) -> ET.Element:
         include = ET.Element("include")
         include.set("name", f"skinshortcuts-{menu.name}")
 
-        for idx, item in enumerate(menu.items, start=1):
+        start = menu.startid if menu.controltype else 1
+        for idx, item in enumerate(menu.items, start=start):
             if item.disabled:
                 continue
             item_elem = self._build_item(item, idx, menu)
@@ -84,9 +133,10 @@ class IncludesBuilder:
         submenu_items: list[tuple[MenuItem, MenuItem, int, Menu]] = []
 
         for parent_item in parent_menu.items:
-            if parent_item.disabled or not parent_item.submenu:
+            if parent_item.disabled:
                 continue
-            submenu = self._menu_map.get(parent_item.submenu)
+            submenu_name = parent_item.submenu or parent_item.name
+            submenu = self._menu_map.get(submenu_name)
             if not submenu:
                 continue
             for idx, sub_item in enumerate(submenu.items, start=1):
@@ -139,11 +189,13 @@ class IncludesBuilder:
     def _build_custom_widget_includes(self, parent_menu: Menu) -> list[ET.Element]:
         """Build custom widget includes for a root menu.
 
-        Custom widgets are menus named '{item.name}.customwidget' or
-        '{item.name}.customwidget.2', etc. Each item+slot combo gets its own include.
+        Custom widgets are referenced via item properties:
+        - customWidget -> slot 1, include: skinshortcuts-{item}-customwidget
+        - customWidget.2 -> slot 2, include: skinshortcuts-{item}-customwidget2
+        - etc.
 
         Returns:
-            List of include elements, one per custom widget menu found.
+            List of include elements, one per custom widget reference found.
         """
         includes = []
 
@@ -152,8 +204,12 @@ class IncludesBuilder:
                 continue
 
             for suffix in ["", ".2", ".3", ".4", ".5", ".6", ".7", ".8", ".9", ".10"]:
-                cw_menu_name = f"{parent_item.name}.customwidget{suffix}"
-                cw_menu = self._menu_map.get(cw_menu_name)
+                prop_name = f"customWidget{suffix}"
+                cw_menu_ref = parent_item.properties.get(prop_name)
+                if not cw_menu_ref:
+                    continue
+
+                cw_menu = self._menu_map.get(cw_menu_ref)
                 if not cw_menu or not cw_menu.items:
                     continue
 
@@ -172,7 +228,11 @@ class IncludesBuilder:
         return includes
 
     def _build_item(self, item: MenuItem, idx: int, menu: Menu) -> ET.Element:
-        elem = ET.Element("item")
+        if menu.controltype:
+            elem = ET.Element("control")
+            elem.set("type", menu.controltype)
+        else:
+            elem = ET.Element("item")
         elem.set("id", str(idx))
 
         ET.SubElement(elem, "label").text = item.label
@@ -182,7 +242,16 @@ class IncludesBuilder:
         if item.thumb:
             ET.SubElement(elem, "thumb").text = item.thumb
 
-        # Order: before defaults -> conditional -> unconditional -> after defaults
+        all_includes = menu.defaults.includes + item.includes
+        before_includes = [i for i in all_includes if i.position == "before-onclick"]
+        after_includes = [i for i in all_includes if i.position == "after-onclick"]
+
+        for inc in before_includes:
+            include_elem = ET.SubElement(elem, "include")
+            include_elem.text = inc.name
+            if inc.condition:
+                include_elem.set("condition", inc.condition)
+
         before_actions = [a for a in menu.defaults.actions if a.when == "before"]
         after_actions = [a for a in menu.defaults.actions if a.when == "after"]
         conditional = [a for a in item.actions if a.condition]
@@ -206,25 +275,49 @@ class IncludesBuilder:
             if act.condition:
                 onclick.set("condition", act.condition)
 
+        for inc in after_includes:
+            include_elem = ET.SubElement(elem, "include")
+            include_elem.text = inc.name
+            if inc.condition:
+                include_elem.set("condition", inc.condition)
+
         if item.visible:
             ET.SubElement(elem, "visible").text = item.visible
 
-        self._add_property(elem, "id", str(idx))
-        self._add_property(elem, "name", item.name)
-        self._add_property(elem, "menu", menu.name)
-        self._add_property(elem, "path", item.action)  # Primary action for display
+        if not menu.controltype:
+            self._add_property(elem, "id", str(idx))
+            self._add_property(elem, "name", item.name)
+            self._add_property(elem, "menu", menu.name)
+            self._add_property(elem, "path", item.action)
 
-        if item.submenu:
-            self._add_property(elem, "submenuVisibility", item.submenu)
-            self._add_property(elem, "hasSubmenu", "True")
+            self._add_property(elem, "submenuVisibility", item.name)
 
-        all_properties = {**menu.defaults.properties, **item.properties}
-        for key, value in all_properties.items():
-            if self._is_template_only(key):
-                continue
-            self._add_property(elem, key, value)
+            submenu_name = item.submenu or item.name
+            submenu = self._menu_map.get(submenu_name)
+            if submenu and submenu.items:
+                self._add_property(elem, "hasSubmenu", "True")
+
+            all_properties = {**menu.defaults.properties, **item.properties}
+            for key, value in all_properties.items():
+                if self._is_template_only(key):
+                    continue
+                self._add_property(elem, key, value)
 
         return elem
+
+    def _get_all_actions(self, exclude: set[str]) -> set[str]:
+        """Collect all item actions (lowercased) from menus not in exclude set."""
+        actions: set[str] = set()
+        for menu in self.menus:
+            if menu.name in exclude:
+                continue
+            for item in menu.items:
+                if item.disabled:
+                    continue
+                for act in item.actions:
+                    if act.action:
+                        actions.add(act.action.lower())
+        return actions
 
     def _is_template_only(self, prop_name: str) -> bool:
         """Check if a property is marked as template_only in the schema.
