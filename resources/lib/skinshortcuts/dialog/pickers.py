@@ -49,6 +49,7 @@ class PickerGroup(Protocol):
     items: list
 
 
+from ..constants import extract_path_from_action
 from ..loaders import evaluate_condition, load_groupings
 from ..localize import resolve_label
 from ..models import (
@@ -76,7 +77,6 @@ class PickersMixin:
     - Shortcut picker from groupings
     - Widget picker from groups/flat list
     - Content resolution (dynamic shortcuts/widgets)
-    - Helper methods for action/path extraction
 
     Requires DialogBaseMixin to be mixed in first.
     """
@@ -285,7 +285,7 @@ class PickersMixin:
             widget = Widget(
                 name=f"dynamic-{content.source}-{len(widgets)}",
                 label=item.label,
-                path=self._extract_path_from_action(item.action),
+                path=extract_path_from_action(item.action),
                 type=item.content_type or content.target or "",
                 target=self._map_target_to_window(content.target),
                 icon=item.icon,
@@ -314,20 +314,6 @@ class PickersMixin:
             shortcuts.append(shortcut)
 
         return shortcuts
-
-    def _extract_path_from_action(self, action: str) -> str:
-        """Extract the path from an action string for widget use."""
-        if action.lower().startswith("activatewindow("):
-            inner = action[15:-1]
-            parts = inner.split(",")
-            if len(parts) >= 2:
-                return parts[1].strip()
-        elif action.lower().startswith("playmedia("):
-            return action[10:-1]
-        elif action.lower().startswith("runaddon("):
-            addon_id = action[9:-1]
-            return f"plugin://{addon_id}/"
-        return action
 
     def _map_target_to_window(self, target: str) -> str:
         """Map content target to widget target window."""

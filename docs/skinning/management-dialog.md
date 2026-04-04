@@ -190,7 +190,8 @@ Properties available on items in the menu list (control 211):
 | `ListItem.Label2` | Primary action |
 | `ListItem.Icon` | Icon path |
 | `ListItem.Property(name)` | Item identifier |
-| `ListItem.Property(path)` | Primary action |
+| `ListItem.Property(action)` | Full action string |
+| `ListItem.Property(path)` | Bare content path |
 | `ListItem.Property(skinshortcuts-disabled)` | `True` or `False` |
 
 ### Widget Properties

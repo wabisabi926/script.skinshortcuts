@@ -35,7 +35,8 @@ Menu items in the generated includes have properties accessible via `ListItem.Pr
 | `label` | `<label>` | Display label |
 | `label2` | `<label2>` | Secondary label |
 | `icon` | `<icon>` | Icon path |
-| `path` | `<action>` | Primary action string |
+| `action` | `<action>` | Full action string (e.g. `ActivateWindow(videos,plugin://...,return)`) |
+| `path` | `<action>` | Bare content path extracted from action |
 | `name` | `name` attribute | Item identifier |
 | `menu` | Parent menu | Menu name containing this item |
 | `visible` | `<visible>` | Visibility condition (output to includes) |
@@ -45,9 +46,9 @@ Menu items in the generated includes have properties accessible via `ListItem.Pr
 ```xml
 <control type="button">
   <label>$INFO[ListItem.Label]</label>
-  <label2>$INFO[ListItem.Property(path)]</label2>
+  <label2>$INFO[ListItem.Property(action)]</label2>
   <texturefocus>$INFO[ListItem.Icon]</texturefocus>
-  <onclick>$INFO[ListItem.Property(path)]</onclick>
+  <onclick>$INFO[ListItem.Property(action)]</onclick>
 </control>
 ```
 
@@ -207,7 +208,8 @@ Templates can define additional properties for output.
 | `label2` | Secondary label |
 | `icon` | Icon path |
 | `thumb` | Thumbnail path |
-| `path` | Primary action |
+| `action` | Full action string |
+| `path` | Bare content path |
 | `name` | Item name |
 | `index` | Zero-based item index |
 | `id` | Computed ID (`{idprefix}{index}`) |
@@ -260,7 +262,7 @@ Using `$PROPERTY[]` placeholders:
 <controls>
   <control type="button" id="$PROPERTY[id]">
     <label>$PROPERTY[label]</label>
-    <onclick>$PROPERTY[path]</onclick>
+    <onclick>$PROPERTY[action]</onclick>
     <property name="index">$PROPERTY[index]</property>
   </control>
 </controls>

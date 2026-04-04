@@ -222,7 +222,7 @@ Iterates over menu items:
   <controls>
     <control type="button">
       <label>$PROPERTY[label]</label>
-      <onclick>$PROPERTY[path]</onclick>
+      <onclick>$PROPERTY[action]</onclick>
     </control>
   </controls>
 </template>
@@ -377,7 +377,8 @@ Standard item properties are also available:
 | `label2` | Secondary label |
 | `icon` | Item icon |
 | `thumb` | Item thumbnail |
-| `path` | Primary action |
+| `action` | Full action string |
+| `path` | Bare content path |
 | `visible` | Visibility condition |
 
 These come from the menu item's attributes, along with any custom properties set in menus.xml or by the user.
@@ -408,7 +409,7 @@ XML content output per item:
 <controls>
   <control type="button" id="$PROPERTY[id]">
     <label>$PROPERTY[label]</label>
-    <onclick>$PROPERTY[path]</onclick>
+    <onclick>$PROPERTY[action]</onclick>
     <visible>$EXP[HasWidget]</visible>
   </control>
 </controls>

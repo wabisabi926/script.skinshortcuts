@@ -13,6 +13,7 @@ try:
 except ImportError:
     IN_KODI = False
 
+from ..constants import extract_path_from_action
 from ..loaders import evaluate_condition, load_menus, load_properties
 from ..loaders.base import apply_suffix_transform
 from ..localize import resolve_label
@@ -318,7 +319,8 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
         listitem.setLabel(resolve_label(item.label))
         listitem.setLabel2(item.action or "")
         listitem.setProperty("name", item.name)
-        listitem.setProperty("path", item.action or "")
+        listitem.setProperty("action", item.action or "")
+        listitem.setProperty("path", extract_path_from_action(item.action) if item.action else "")
         listitem.setProperty("originalAction", item.original_action or item.action or "")
         listitem.setProperty("skinshortcuts-disabled", "True" if item.disabled else "False")
         listitem.setProperty("skinshortcuts-isRequired", "True" if item.required else "False")

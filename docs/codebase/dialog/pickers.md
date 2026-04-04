@@ -68,6 +68,5 @@ This allows users to create shortcuts to addon categories even when empty, with 
 
 | Method | Purpose |
 |--------|---------|
-| `_extract_path_from_action` | Extract path for widget use |
 | `_map_target_to_window` | Map content target to window |
 | `_nested_picker` | Generic picker with back navigation |
