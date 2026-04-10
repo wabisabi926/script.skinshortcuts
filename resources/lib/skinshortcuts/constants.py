@@ -71,6 +71,22 @@ WINDOW_MAP: dict[str, str] = {
     "liveradio": "RadioChannels",
 }
 
+def extract_path_from_action(action: str) -> str:
+    """Extract the bare content path from a full action string."""
+    lower = action.lower()
+    if lower.startswith("activatewindow("):
+        inner = action[15:-1]
+        parts = inner.split(",")
+        if len(parts) >= 2:
+            return parts[1].strip()
+    elif lower.startswith("playmedia("):
+        return action[10:-1]
+    elif lower.startswith("runaddon("):
+        addon_id = action[9:-1]
+        return f"plugin://{addon_id}/"
+    return action
+
+
 TARGET_MAP: dict[str, str] = {
     "video": "videos",
     "videos": "videos",

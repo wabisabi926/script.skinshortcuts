@@ -463,7 +463,7 @@ Defines templates for generating skin includes. For detailed documentation, see 
     <controls>
       <control type="button" id="$MATH[$PROPERTY[index] * 1000 + 100]">
         <label>$PROPERTY[label]</label>
-        <onclick>$PROPERTY[path]</onclick>
+        <onclick>$PROPERTY[action]</onclick>
         <skinshortcuts>visibility</skinshortcuts>
         <skinshortcuts include="FocusAnimation" />
         <skinshortcuts include="OptionalContent" condition="widgetPath" wrap="true" />
@@ -618,7 +618,8 @@ Defines templates for generating skin includes. For detailed documentation, see 
 | `id` | Computed ID: `{idprefix}{index}` |
 | `suffix` | Output suffix (e.g., `.2`) or empty |
 | `label` | Item label |
-| `path` | Primary action |
+| `action` | Full action string |
+| `path` | Bare content path |
 
 ***
 

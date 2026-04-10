@@ -13,6 +13,7 @@ try:
 except ImportError:
     IN_KODI = False
 
+from ..constants import extract_path_from_action
 from ..loaders import evaluate_condition, load_menus, load_properties
 from ..loaders.base import apply_suffix_transform
 from ..localize import resolve_label
@@ -197,6 +198,12 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
                 self.show_context_menu = menu_config.show_context_menu
                 self._subdialogs = {sd.button_id: sd for sd in menu_config.subdialogs}
 
+        if not self.dialog_mode and self.manager:
+            menu = self.manager.config.get_menu(self.menu_id)
+            if menu and menu.menu_type == "widgets":
+                self.dialog_mode = "widgets"
+
+
         if self.property_suffix:
             self.setProperty("skinshortcuts-suffix", self.property_suffix)
         if self.dialog_mode:
@@ -312,7 +319,8 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
         listitem.setLabel(resolve_label(item.label))
         listitem.setLabel2(item.action or "")
         listitem.setProperty("name", item.name)
-        listitem.setProperty("path", item.action or "")
+        listitem.setProperty("action", item.action or "")
+        listitem.setProperty("path", extract_path_from_action(item.action) if item.action else "")
         listitem.setProperty("originalAction", item.original_action or item.action or "")
         listitem.setProperty("skinshortcuts-disabled", "True" if item.disabled else "False")
         listitem.setProperty("skinshortcuts-isRequired", "True" if item.required else "False")
@@ -524,8 +532,10 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
                     self.setProperty("disableBackgrounds", "true" if not allow.backgrounds else "")
                     self.setProperty("disableSubmenus", "true" if not allow.submenus else "")
 
-                    if menu.is_submenu:
-                        menu_type = menu.menu_type or "submenu"
+                    if menu.menu_type:
+                        menu_type = menu.menu_type
+                    elif menu.is_submenu:
+                        menu_type = "submenu"
                     else:
                         menu_type = ""
                     self.setProperty("skinshortcuts-menutype", menu_type)

@@ -14,6 +14,8 @@ The `widgets.xml` file defines widgets that users can assign to menu items.
 * [Conditions](#conditions)
 * [Output Properties](#output-properties)
 * [Multiple Widgets](#multiple-widgets)
+* [Widget Menus](#widget-menus)
+* [Widget Picker Button](#widget-picker-button)
 * [Standalone Widget Picker](#standalone-widget-picker)
 
 ---
@@ -353,6 +355,140 @@ Display additional widgets:
   <visible>!String.IsEmpty(Container(9000).ListItem.Property(widgetPath.2))</visible>
 </control>
 ```
+
+---
+
+## Widget Menus
+
+A menu with `type="widgets"` puts the management dialog into widget mode. In this mode, adding an item opens the widget picker instead of the shortcut picker, and the item's label and icon are set from the selected widget.
+
+This works on both `<menu>` and `<submenu>` elements.
+
+### Standalone Widget Menu
+
+A top-level widget menu managed independently of any other menu:
+
+```xml
+<!-- menus.xml -->
+<menu name="globalwidgets" type="widgets">
+  <allow widgets="true" />
+  <item name="gw-recent-movies">
+    <label>Recently Added Movies</label>
+    <icon>DefaultRecentlyAddedMovies.png</icon>
+    <property name="widgetPath">videodb://recentlyaddedmovies/</property>
+    <property name="widgetType">movies</property>
+    <property name="widgetTarget">videos</property>
+  </item>
+</menu>
+```
+
+Open it directly:
+
+```xml
+<onclick>RunScript(script.skinshortcuts,type=manage&amp;menu=globalwidgets)</onclick>
+```
+
+The generated include `skinshortcuts-globalwidgets` contains each item with its widget properties, usable like any other menu include.
+
+### Per-Item Widget Submenu
+
+A widget submenu tied to a parent menu item via the subdialog system:
+
+```xml
+<!-- menus.xml -->
+<submenu name="movies.widgets" type="widgets">
+  <item name="movies-recent">
+    <label>Recently Added</label>
+    <property name="widgetPath">videodb://recentlyaddedmovies/</property>
+    <property name="widgetType">movies</property>
+    <property name="widgetTarget">videos</property>
+  </item>
+</submenu>
+
+<dialogs>
+  <subdialog buttonID="406" mode="widgets" setfocus="309">
+    <onclose action="menu" menu="{item}.widgets" />
+  </subdialog>
+</dialogs>
+```
+
+Use with [items templates](templates.md#dynamic-widgets-pattern) to iterate over the widget items and generate controls per widget.
+
+### Dialog Behavior
+
+In widget mode (`type="widgets"`):
+
+- **Add** opens the widget picker (from `widgets.xml`) instead of the shortcut picker
+- **Item label and icon** are set from the selected widget
+- All other operations (delete, move, properties) work as normal
+- The window property `skinshortcuts-menutype` is set to `widgets`
+
+> **See also:** [Widget Picker Button](#widget-picker-button) for adding a widget picker to individual items, [Dynamic Widgets Pattern](templates.md#dynamic-widgets-pattern) for template iteration
+
+---
+
+## Widget Picker Button
+
+To add a widget picker button to the management dialog, define a `type="widget"` property in `properties.xml` and map it to a button ID.
+
+### Setup
+
+In `properties.xml`, add a property and button mapping:
+
+```xml
+<properties>
+  <property name="widget" type="widget" />
+
+  <buttons>
+    <button id="309" property="widget" />
+  </buttons>
+</properties>
+```
+
+In your management dialog XML, add a button with the matching ID:
+
+```xml
+<control type="button" id="309">
+  <label>Choose Widget</label>
+  <visible>!String.IsEqual(Window.Property(skinshortcuts-disableWidgets),true)</visible>
+</control>
+```
+
+When clicked, this opens the widget picker populated from `widgets.xml`. The selected widget auto-populates these properties on the menu item:
+
+| Property | Value |
+|----------|-------|
+| `widget` | Widget name |
+| `widgetLabel` | Display label |
+| `widgetPath` | Content path |
+| `widgetType` | Content type |
+| `widgetTarget` | Target window |
+| `widgetSource` | Source type |
+
+Selecting "None" clears all widget properties.
+
+### Multiple Widget Slots
+
+For additional widget slots, use [subdialogs](menus.md#subdialogs) with a suffix:
+
+```xml
+<!-- properties.xml -->
+<buttons suffix="true">
+  <button id="309" property="widget" />
+</buttons>
+```
+
+```xml
+<!-- menus.xml -->
+<dialogs>
+  <subdialog buttonID="800" mode="widget1" setfocus="309" />
+  <subdialog buttonID="801" mode="widget2" setfocus="309" suffix=".2" />
+</dialogs>
+```
+
+The suffix transforms property names automatically — `widget` becomes `widget.2`, `widgetPath` becomes `widgetPath.2`, etc.
+
+> **See also:** [Properties](properties.md#button-mappings) for button mapping options, [Suffix Transforms](properties.md#suffix-transforms) for how suffixes work, [Multiple Widgets](#multiple-widgets) for display setup
 
 ---
 

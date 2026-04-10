@@ -6,6 +6,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ..constants import extract_path_from_action
+
 if TYPE_CHECKING:
     from ..models import Menu, MenuItem
     from ..models.property import PropertySchema
@@ -288,7 +290,9 @@ class IncludesBuilder:
             self._add_property(elem, "id", str(idx))
             self._add_property(elem, "name", item.name)
             self._add_property(elem, "menu", menu.name)
-            self._add_property(elem, "path", item.action)
+            self._add_property(elem, "action", item.action)
+            path = extract_path_from_action(item.action) if item.action else ""
+            self._add_property(elem, "path", path)
 
             self._add_property(elem, "submenuVisibility", item.name)
 

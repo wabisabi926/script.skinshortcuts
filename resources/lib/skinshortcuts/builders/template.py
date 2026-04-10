@@ -11,6 +11,7 @@ import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
 
 from ..conditions import evaluate_condition
+from ..constants import extract_path_from_action
 from ..expressions import process_if_expressions, process_math_expressions
 from ..loaders.base import apply_suffix_to_from, apply_suffix_transform
 from ..log import get_logger
@@ -244,7 +245,8 @@ class TemplateBuilder:
         context["index"] = str(index)
         context["menu"] = submenu.name
         context["icon"] = item.icon
-        context["path"] = item.action
+        context["action"] = item.action
+        context["path"] = extract_path_from_action(item.action) if item.action else ""
         context["submenu"] = item.submenu or ""
         if "submenuVisibility" not in context:
             context["submenuVisibility"] = item.name
@@ -583,7 +585,8 @@ class TemplateBuilder:
         context["label2"] = item.label2
         context["icon"] = item.icon
         context["visible"] = item.visible
-        context["path"] = item.action
+        context["action"] = item.action
+        context["path"] = extract_path_from_action(item.action) if item.action else ""
 
         context["submenuVisibility"] = item.name
 
@@ -1535,7 +1538,8 @@ class TemplateBuilder:
         context["label2"] = sub_item.label2
         context["icon"] = sub_item.icon
         context["visible"] = sub_item.visible
-        context["path"] = sub_item.action
+        context["action"] = sub_item.action
+        context["path"] = extract_path_from_action(sub_item.action) if sub_item.action else ""
 
         self._apply_fallbacks(sub_item, context)
 

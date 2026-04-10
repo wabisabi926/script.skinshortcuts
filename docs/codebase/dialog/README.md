@@ -58,7 +58,8 @@ Properties set on items in list control 211:
 | Property | Description |
 |----------|-------------|
 | `name` | Item's internal name |
-| `path` | Item's action |
+| `action` | Full action string |
+| `path` | Bare content path |
 | `widget`, `widgetLabel`, `widgetPath`, `widgetType`, `widgetTarget` | Widget properties |
 | `background`, `backgroundLabel`, `backgroundPath` | Background properties |
 | `hasSubmenu`, `submenu` | Submenu info |
