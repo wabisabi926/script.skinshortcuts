@@ -51,7 +51,7 @@ msgstr "插件"
 
 msgctxt "#32008"
 msgid "Mixed Playlist"
-msgstr "混合的播放列表"
+msgstr "混合播放列表"
 
 msgctxt "#32009"
 msgid "Program"
@@ -175,7 +175,7 @@ msgstr "您确定要将所有菜单项重置为默认值吗？"
 
 msgctxt "#32039"
 msgid "Pick widget for %s"
-msgstr "挑选桌面小组件给%s"
+msgstr "选择桌面小组件给 %s"
 
 msgctxt "#32040"
 msgid "Playlist"
@@ -223,11 +223,11 @@ msgstr "默认"
 
 msgctxt "#32051"
 msgid "Single image"
-msgstr "单一图片"
+msgstr "单一图像"
 
 msgctxt "#32052"
 msgid "Multi-image"
-msgstr "多个图片"
+msgstr "多个图像"
 
 msgctxt "#32053"
 msgid "None"
@@ -235,7 +235,7 @@ msgstr "无"
 
 msgctxt "#32054"
 msgid "Kodi Command"
-msgstr "Kodi命令"
+msgstr "Kodi 命令"
 
 msgctxt "#32055"
 msgid "Clean video library"
@@ -367,7 +367,7 @@ msgstr "不在此来源的混合内容"
 
 msgctxt "#32087"
 msgid "Radio"
-msgstr "电台"
+msgstr "广播"
 
 msgctxt "#32088"
 msgid "Channels"
@@ -395,7 +395,7 @@ msgstr "上传调试日志？"
 
 msgctxt "#32094"
 msgid "Install Kodi Log Uploader add-on to easily provide a debug log."
-msgstr "安装Kodi Log Uploader插件，轻松上传调试日志。"
+msgstr "安装 Kodi Log Uploader 插件，轻松上传调试日志。"
 
 msgctxt "#32095"
 msgid "Choose default action for menu item"
