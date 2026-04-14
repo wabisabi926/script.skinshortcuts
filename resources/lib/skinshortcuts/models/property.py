@@ -46,6 +46,7 @@ class SchemaProperty:
     requires: str = ""  # Property name that must have a value
     options: list[SchemaOption] = field(default_factory=list)
     type: str = ""  # "widget", "background", "toggle", or "options"
+    value: str = ""  # For toggle: custom value instead of "True"
 
 
 @dataclass
