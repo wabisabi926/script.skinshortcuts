@@ -757,13 +757,13 @@ class TemplateBuilder:
         context: dict[str, str],
         item: MenuItem,
     ) -> None:
-        """Substitute $PROPERTY[...] in variable content recursively."""
+        """Substitute $EXP/$PROPERTY/$MATH/$IF in variable content recursively."""
         if elem.text:
-            elem.text = self._substitute_property_refs(elem.text, item, context)
+            elem.text = self._substitute_text(elem.text, context, item)
         if elem.tail:
-            elem.tail = self._substitute_property_refs(elem.tail, item, context)
+            elem.tail = self._substitute_text(elem.tail, context, item)
         for attr, value in list(elem.attrib.items()):
-            elem.set(attr, self._substitute_property_refs(value, item, context))
+            elem.set(attr, self._substitute_text(value, context, item))
         for child in elem:
             self._substitute_variable_content(child, context, item)
 
