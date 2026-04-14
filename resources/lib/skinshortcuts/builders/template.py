@@ -446,10 +446,12 @@ class TemplateBuilder:
             if template.menu and menu.name != template.menu:
                 continue
             if not menu.container:
-                log.warning(
-                    f"<skinshortcuts>visibility in build=\"true\" template for "
-                    f"menu '{menu.name}' but menu has no container attribute"
-                )
+                # Only warn when the template explicitly targets this menu
+                if template.menu:
+                    log.warning(
+                        f"<skinshortcuts>visibility in build=\"true\" template for "
+                        f"menu '{menu.name}' but menu has no container attribute"
+                    )
                 continue
             for idx, item in enumerate(menu.items, start=1):
                 if item.disabled:
