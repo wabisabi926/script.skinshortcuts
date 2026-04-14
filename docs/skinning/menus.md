@@ -470,7 +470,7 @@ For finer control, use `visible` on individual `<group>` elements to show/hide g
 
 | Element | Description |
 |---------|-------------|
-| `<action>` | Action string (for action mode) |
+| `<action>` | Action string (for action mode). Multiple allowed. Supports `primary="true"` to set which action is used for display properties (defaults to the last action) |
 | `<path>` | Content path (for browse mode) |
 
 ### Shortcut Modes
@@ -480,6 +480,24 @@ For finer control, use `visible` on individual `<group>` elements to show/hide g
 ```xml
 <shortcut name="movies" label="Movies">
   <action>ActivateWindow(Videos,videodb://movies/)</action>
+</shortcut>
+```
+
+**Multiple actions:** Shortcuts can have multiple `<action>` elements. All actions are applied when the user picks the shortcut. The `action` and `path` listitem properties use the last action by default.
+
+```xml
+<shortcut name="movie-hub" label="Movie Hub">
+  <action>SetProperty(HubMode,movies,Home)</action>
+  <action>ActivateWindow(1111)</action>
+</shortcut>
+```
+
+Use `primary="true"` to explicitly control which action is used for the display properties:
+
+```xml
+<shortcut name="movie-hub" label="Movie Hub">
+  <action>SetProperty(HubMode,movies,Home)</action>
+  <action primary="true">ActivateWindow(1111)</action>
 </shortcut>
 ```
 
@@ -583,9 +601,17 @@ Allow users to enter custom values via keyboard:
 | `visible` | No | - | Kodi visibility condition |
 | `icon` | No | `DefaultFile.png` | Icon in picker |
 
-### Browse Into Addons
+### Browse Into
 
-When a shortcut has a browsable path (`plugin://` or `addons://`), selecting it opens a directory browser instead of immediately selecting. Users can navigate into subdirectories and select "Create menu item to here" to use the current location.
+A shortcut is only browsable in the picker when it explicitly opts in via the `browse` attribute combined with a `<path>` element. Selecting a browsable shortcut opens a directory browser so users can pick a sub-location; the first entry ("Create menu item to here") uses the current location as-is.
+
+```xml
+<shortcut name="movie-genres" label="Genres" icon="DefaultGenre.png" browse="videos">
+  <path>videodb://movies/genres/</path>
+</shortcut>
+```
+
+Shortcuts that specify only `<action>` (even an `ActivateWindow` to a browsable path) are fire-and-forget, so no browse-into is offered. Dynamic `<content source="addons">` resolves plugin-source addons as browsable automatically; `RunAddon` executables stay single-click.
 
 > **See also:** [Conditions](conditions.md) for `condition` and `visible` attribute syntax
 

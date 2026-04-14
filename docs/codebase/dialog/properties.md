@@ -59,7 +59,7 @@ Route property button click to appropriate handler based on property type from s
 
 | Method | Purpose |
 |--------|---------|
-| `_handle_toggle_property` | Toggle between "True" and cleared |
+| `_handle_toggle_property` | Toggle between a value and cleared (uses `prop.value` or defaults to "True") |
 | `_handle_text_property` | Free text input via keyboard dialog |
 | `_handle_number_property` | Numeric input via numeric input dialog |
 | `_handle_options_property` | Show options picker with condition filtering |
