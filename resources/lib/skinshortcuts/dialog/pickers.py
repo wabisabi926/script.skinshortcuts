@@ -115,8 +115,8 @@ class PickersMixin:
 
         shortcut = self._pick_shortcut(groups, item_props)
         if shortcut:
-            action = self._get_shortcut_action(shortcut)
-            if action is None:
+            actions = self._get_shortcut_actions(shortcut)
+            if actions is None:
                 return
 
             result_label = shortcut.label
@@ -124,8 +124,8 @@ class PickersMixin:
                 result_label = shortcut.type
             self.manager.set_label(self.menu_id, item.name, result_label)
             item.label = result_label
-            self.manager.set_action(self.menu_id, item.name, action)
-            item.actions = [Action(action=action)] if action else []
+            self.manager.set_action(self.menu_id, item.name, actions)
+            item.actions = [Action(action=a) for a in actions] if actions else []
 
             if shortcut.icon:
                 self.manager.set_icon(self.menu_id, item.name, shortcut.icon)
@@ -133,11 +133,15 @@ class PickersMixin:
 
             self._refresh_selected_item()
 
-    def _get_shortcut_action(self, shortcut: Shortcut) -> str | None:
-        """Get action from shortcut, showing playlist choice dialog if applicable."""
+    def _get_shortcut_actions(self, shortcut: Shortcut) -> list[str] | None:
+        """Get actions from shortcut, showing playlist choice dialog if applicable."""
         if shortcut.action_play:
-            return self._choose_playlist_action(shortcut)
-        return shortcut.get_action() if hasattr(shortcut, "get_action") else shortcut.action
+            action = self._choose_playlist_action(shortcut)
+            return [action] if action else None
+        # Browse mode resolves to a single action
+        if shortcut.browse and shortcut.path:
+            return [shortcut.get_action()]
+        return shortcut.actions if shortcut.actions else None
 
     def _choose_playlist_action(self, shortcut: Shortcut) -> str | None:
         """Show dialog asking what to do with a playlist shortcut."""
@@ -209,6 +213,7 @@ class PickersMixin:
             Widget if selected, None if cancelled completely, False if "None" chosen.
         """
         current_widget = item_props.get(slot, "")
+        items = self._filter_widgets_by_slot(items, slot)
 
         result = self._pick_from_hierarchy(
             items,
@@ -282,14 +287,16 @@ class PickersMixin:
 
         widgets = []
         for item in resolved:
+            path = item.browse_path or extract_path_from_action(item.action)
             widget = Widget(
                 name=f"dynamic-{content.source}-{len(widgets)}",
                 label=item.label,
-                path=extract_path_from_action(item.action),
+                path=path,
                 type=item.content_type or content.target or "",
                 target=self._map_target_to_window(content.target),
                 icon=item.icon,
                 source=source,
+                browse=bool(item.browse_path),
             )
             widgets.append(widget)
 
@@ -305,7 +312,9 @@ class PickersMixin:
             shortcut = Shortcut(
                 name=f"dynamic-{content.source}-{len(shortcuts)}",
                 label=item.label,
-                action=item.action,
+                actions=[item.action] if item.action else [],
+                path=item.browse_path,
+                browse=item.browse_window,
                 type=item.label2,
                 icon=item.icon,
                 action_play=item.action_play,
@@ -382,10 +391,8 @@ class PickersMixin:
         return type_to_target.get(widget_type, default)
 
     def _is_browsable_widget(self, widget: Widget) -> bool:
-        """Check if a widget has a browsable path."""
-        if not widget.path:
-            return False
-        return self._is_path_browsable(widget.path)
+        """Check if a widget is explicitly opted-in for browse-into via `browse="true"`."""
+        return bool(widget.browse and widget.path and self._is_path_browsable(widget.path))
 
     def _browse_widget_path(self, widget: Widget) -> Widget | None:
         """Browse into a widget's path and let user select location.
@@ -552,6 +559,13 @@ class PickersMixin:
                 if isinstance(vis_item, group_types):
                     label = f"{label} >"
                     icon = vis_item.icon if vis_item.icon else default_group_icon
+                elif (
+                    isinstance(vis_item, Shortcut)
+                    and not vis_item.name.startswith("content-placeholder-")
+                    and self._is_browsable_shortcut(vis_item)
+                ):
+                    label = f"{label} >"
+                    icon = vis_item.icon if vis_item.icon else default_leaf_icon
                 else:
                     icon = vis_item.icon if vis_item.icon else default_leaf_icon
                 listitem = xbmcgui.ListItem(label)
@@ -670,6 +684,13 @@ class PickersMixin:
                 if isinstance(vis_item, group_types):
                     label = f"{label} >"
                     icon = vis_item.icon if vis_item.icon else default_group_icon
+                elif (
+                    isinstance(vis_item, Shortcut)
+                    and not vis_item.name.startswith("content-placeholder-")
+                    and self._is_browsable_shortcut(vis_item)
+                ):
+                    label = f"{label} >"
+                    icon = vis_item.icon if vis_item.icon else default_leaf_icon
                 else:
                     icon = vis_item.icon if vis_item.icon else default_leaf_icon
                 listitem = xbmcgui.ListItem(label)
@@ -799,21 +820,21 @@ class PickersMixin:
             return Shortcut(
                 name=f"custom-input-{hash(result)}",
                 label=input_item.label,
-                action=result,
+                actions=[result],
                 icon=input_item.icon,
             )
         if input_item.for_ == "label":
             return Shortcut(
                 name=f"custom-input-{hash(result)}",
                 label=result,
-                action="noop",
+                actions=["noop"],
                 icon=input_item.icon,
             )
         if input_item.for_ == "path":
             return Shortcut(
                 name=f"custom-input-{hash(result)}",
                 label=input_item.label,
-                action=f"ActivateWindow(Videos,{result},return)",
+                actions=[f"ActivateWindow(Videos,{result},return)"],
                 icon=input_item.icon,
             )
 
@@ -912,26 +933,43 @@ class PickersMixin:
         return Shortcut(
             name=f"browse-{hash(selected_path)}",
             label=label,
-            action=f"ActivateWindow({target_window},{selected_path},return)",
+            actions=[f"ActivateWindow({target_window},{selected_path},return)"],
             icon=icon,
         )
 
+    def _filter_widgets_by_slot(self, items: list, slot: str) -> list:
+        """Filter widget items by slot. Widgets with no slot show for all slots.
+        Widgets with a specific slot only show when that slot is being edited.
+        Recurses into WidgetGroups.
+        """
+        from ..models.widget import Widget, WidgetGroup
+
+        filtered = []
+        for item in items:
+            if isinstance(item, Widget):
+                if not item.slot or item.slot == slot:
+                    filtered.append(item)
+            elif isinstance(item, WidgetGroup):
+                filtered_children = self._filter_widgets_by_slot(item.items, slot)
+                if filtered_children:
+                    filtered_group = WidgetGroup(
+                        name=item.name,
+                        label=item.label,
+                        icon=item.icon,
+                        condition=item.condition,
+                        visible=item.visible,
+                        items=filtered_children,
+                    )
+                    filtered.append(filtered_group)
+            else:
+                filtered.append(item)
+        return filtered
+
     def _is_browsable_shortcut(self, shortcut: Shortcut) -> bool:
-        """Check if a shortcut has a browsable path."""
-        action = shortcut.get_action() if hasattr(shortcut, "get_action") else shortcut.action
-
-        if not action:
-            return False
-
-        action_lower = action.lower()
-        if action_lower.startswith("activatewindow("):
-            inner = action[15:-1]
-            parts = inner.split(",")
-            if len(parts) >= 2:
-                path = parts[1].strip()
-                return self._is_path_browsable(path)
-
-        return False
+        """Check if a shortcut is explicitly opted-in for browse-into via `browse` + `<path>`."""
+        return bool(
+            shortcut.browse and shortcut.path and self._is_path_browsable(shortcut.path)
+        )
 
     def _is_path_browsable(self, path: str) -> bool:
         """Check if a path can be browsed into."""
@@ -941,6 +979,13 @@ class PickersMixin:
         browsable_prefixes = (
             "plugin://",
             "addons://",
+            "videodb://",
+            "musicdb://",
+            "library://",
+            "sources://",
+            "pvr://",
+            "special://",
+            "upnp://",
         )
 
         return path.lower().startswith(browsable_prefixes)
@@ -978,7 +1023,7 @@ class PickersMixin:
         return Shortcut(
             name=f"content-placeholder-{content.source}-{target}",
             label=LANGUAGE(32058),
-            action=f"ActivateWindow({window},{path},return)",
+            actions=[f"ActivateWindow({window},{path},return)"],
             icon=content.icon if content.icon else "DefaultFolder.png",
             type=content.label if content.label else "",
         )
@@ -986,25 +1031,15 @@ class PickersMixin:
     def _get_browse_info_from_shortcut(self, shortcut: Shortcut) -> tuple[str, str] | None:
         """Extract browsable path and target window from a shortcut.
 
-        Returns:
-            Tuple of (path, window) or None if not browsable
+        Returns (path, window) if the shortcut opted in via `browse` + `<path>`, else None.
         """
-        action = shortcut.get_action() if hasattr(shortcut, "get_action") else shortcut.action
-
-        if not action:
+        if not (shortcut.browse and shortcut.path and self._is_path_browsable(shortcut.path)):
             return None
 
-        action_lower = action.lower()
-        if action_lower.startswith("activatewindow("):
-            inner = action[15:-1]
-            parts = inner.split(",")
-            if len(parts) >= 2:
-                window = parts[0].strip()
-                path = parts[1].strip()
-                if self._is_path_browsable(path):
-                    return (path, window)
+        from ..constants import WINDOW_MAP
 
-        return None
+        window = WINDOW_MAP.get(shortcut.browse.lower(), "Videos")
+        return (shortcut.path, window)
 
     def _pick_background(
         self, item_props: dict[str, str], current_value: str = ""

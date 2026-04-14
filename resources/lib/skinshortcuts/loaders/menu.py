@@ -543,18 +543,28 @@ def _parse_shortcut(elem, _path: str) -> Shortcut | None:
     if not shortcut_name or not label:
         return None
 
-    action = get_text(elem, "action") or ""
+    actions = []
+    primary_action = ""
+    for a in elem.findall("action"):
+        action_text = (a.text or "").strip()
+        if not action_text:
+            continue
+        actions.append(action_text)
+        if (a.get("primary") or "").lower() == "true":
+            primary_action = action_text
+
     shortcut_path = get_text(elem, "path") or ""
     browse = get_attr(elem, "browse") or ""
 
-    # Must have either action or (browse + path)
-    if not action and not (browse and shortcut_path):
+    # Must have either action(s) or (browse + path)
+    if not actions and not (browse and shortcut_path):
         return None
 
     return Shortcut(
         name=shortcut_name,
         label=label,
-        action=action,
+        actions=actions,
+        primary_action=primary_action,
         path=shortcut_path,
         browse=browse,
         type=get_attr(elem, "type") or "",

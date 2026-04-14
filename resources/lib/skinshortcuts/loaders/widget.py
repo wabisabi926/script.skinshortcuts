@@ -65,6 +65,8 @@ def _parse_widget(elem, path: str, default_source: str = "") -> Widget:
     raw_target = get_attr(elem, "target") or "videos"
     target = TARGET_MAP.get(raw_target.lower(), raw_target)
 
+    browse = (get_attr(elem, "browse") or "").lower() == "true"
+
     return Widget(
         name=widget_name,
         label=label,
@@ -79,6 +81,7 @@ def _parse_widget(elem, path: str, default_source: str = "") -> Widget:
         limit=get_int(elem, "limit"),
         source=source,
         slot=get_attr(elem, "slot") or "",
+        browse=browse,
     )
 
 

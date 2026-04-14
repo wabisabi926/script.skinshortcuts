@@ -35,6 +35,7 @@ class Widget:
     limit: int | None = None
     source: str = ""  # Widget source type (library, playlist, addon, etc.)
     slot: str = ""  # For type="custom": which widget slot (e.g., "widget", "widget.2")
+    browse: bool = False  # Opt-in: allow browse-into during picker
 
     @property
     def is_custom(self) -> bool:
