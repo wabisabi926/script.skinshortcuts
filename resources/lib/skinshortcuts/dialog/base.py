@@ -231,11 +231,6 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
             self.items = self.manager.get_menu_items(self.menu_id)
 
             if not self.items:
-                menu = self.manager.working.get(self.menu_id)
-                is_empty_submenu = menu and menu.is_submenu
-                is_custom_widget = self.dialog_mode.startswith("custom-")
-
-                if is_empty_submenu or is_custom_widget:
                     if self.menu_id.startswith("user-"):
                         menu_suffix = self.menu_id[5:]
                     else:
@@ -372,7 +367,7 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
                 "label",
             ):
                 continue
-            if prop_name.startswith("widget"):
+            if self._is_widget_dependent(prop_name):
                 if "." in prop_name:
                     suffix = "." + prop_name.split(".", 1)[-1]
                     slot_widget = item.properties.get(f"widget{suffix}", "")
@@ -398,6 +393,27 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
             if self.manager:
                 is_modified = self.manager.is_item_modified(self.menu_id, item.name)
             listitem.setProperty("isResettable", "true" if is_modified else "")
+
+    def _is_widget_dependent(self, prop_name: str) -> bool:
+        """Check if a property depends on a widget being set.
+
+        Uses the property schema's requires field rather than prefix matching,
+        so custom properties that happen to start with 'widget' aren't affected.
+        Checks both property-level and button-level requires, since a skin may
+        declare a widget-dependent toggle only via a <button> entry.
+        """
+        if not self.property_schema:
+            return False
+        widget_requires = ("widget", "widgetPath", "widgetStyle")
+        # Strip suffix (e.g., "widgetStyle.2" -> "widgetStyle")
+        base_name = prop_name.split(".")[0] if "." in prop_name else prop_name
+        prop = self.property_schema.properties.get(base_name)
+        if prop and prop.requires in widget_requires:
+            return True
+        for button in self.property_schema.buttons.values():
+            if button.property_name == base_name and button.requires in widget_requires:
+                return True
+        return False
 
     def _get_selected_listitem(self) -> xbmcgui.ListItem | None:
         """Get the currently selected ListItem from the control."""
@@ -583,6 +599,7 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
         """Handle actions."""
         action_id = action.getId()
         if action_id in ACTION_CANCEL:
+            self._log(f"Back/Cancel received (action_id={action_id}), menu={self.menu_id}, mode={self.dialog_mode}, is_child={self.is_child}")
             self.close()
         elif action_id in ACTION_CONTEXT and self.show_context_menu:
             self._show_context_menu()
