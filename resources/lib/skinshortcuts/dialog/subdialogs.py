@@ -143,10 +143,6 @@ class SubdialogsMixin:
         Evaluates each onclose action's condition against the current item state.
         The first matching action is executed.
 
-        Supports special menu placeholders:
-        - {customWidget} - custom widget slot 1
-        - {customWidget.2} - custom widget slot 2, etc.
-
         Args:
             subdialog: The subdialog definition with onclose actions
             item: The original menu item (used as fallback)
@@ -245,10 +241,7 @@ class SubdialogsMixin:
 
         self._log(f"Opening onclose menu: {menu_name}")
 
-        menu = self.manager.working.get(menu_name) or self.manager.config.get_menu(menu_name)
-        if menu and menu.menu_type == "widgets":
-            dialog_mode = "widgets"
-        elif subdialog.mode:
+        if subdialog.mode:
             dialog_mode = f"custom-{subdialog.mode}"
         else:
             dialog_mode = "customwidget"
