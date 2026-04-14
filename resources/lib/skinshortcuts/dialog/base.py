@@ -209,6 +209,13 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
         if self.dialog_mode:
             self.setProperty("skinshortcuts-dialog", self.dialog_mode)
 
+        # Mirror to Home so visibility checks work when native dialogs (DialogSelect, etc) take focus
+        if self.dialog_mode:
+            home = xbmcgui.Window(10000)
+            home.setProperty("skinshortcuts-dialog", self.dialog_mode)
+            if self.property_suffix:
+                home.setProperty("skinshortcuts-suffix", self.property_suffix)
+
         self._load_items()
         self._log(f"Loaded {len(self.items)} items for menu '{self.menu_id}'")
         self._display_items()
@@ -607,9 +614,13 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
     def close(self) -> None:
         """Save changes and close dialog.
 
-        Note: Home properties (skinshortcuts-dialog/suffix) are cleared by
-        the parent after doModal() returns, not here.
+        Clears Home skinshortcuts-dialog/suffix properties this dialog set,
+        so they don't leak after the dialog closes.
         """
+        if self.dialog_mode:
+            home = xbmcgui.Window(10000)
+            home.clearProperty("skinshortcuts-dialog")
+            home.clearProperty("skinshortcuts-suffix")
         if not self.is_child and self.manager and self.manager.has_changes():
             self.manager.save()
             self.changes_saved = True
