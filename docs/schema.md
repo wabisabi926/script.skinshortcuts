@@ -143,7 +143,8 @@ Defines menu structure, shortcut picker groupings, icon sources, and action over
 |------|-------------|
 | `delete` | Confirm before deleting |
 | `action` | Confirm before changing action |
-| `all` | Confirm both |
+| `disable` | Confirm before disabling |
+| `all` | Confirm before delete, action change, or disable |
 
 ***
 
@@ -736,8 +737,8 @@ Clears a specific menu's user data.
 
 | Property | Description |
 |----------|-------------|
-| `skinshortcuts-dialog` | Current subdialog mode (auto-clears on close) |
-| `skinshortcuts-suffix` | Current property suffix (e.g., `.2`) (auto-clears on close) |
+| `skinshortcuts-dialog` | Current subdialog mode (set on both dialog and Home windows; use `Window(home).Property` for cross-window visibility) |
+| `skinshortcuts-suffix` | Current property suffix (e.g., `.2`) (set on both dialog and Home windows; use `Window(home).Property` for cross-window visibility) |
 
 ***
 

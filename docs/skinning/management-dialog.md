@@ -156,7 +156,7 @@ Properties set on the dialog window for conditional visibility:
 
 ### Subdialog Mode
 
-These properties are set on the **dialog window** and auto-cleanup when the dialog closes:
+These properties are set on **both the dialog window and the Home window**. Read via `Window(home).Property(...)` if visibility needs to remain correct when a native dialog (DialogSelect, keyboard, file browser) is on top of the management dialog; otherwise either form works.
 
 | Property | Description |
 |----------|-------------|
@@ -166,14 +166,14 @@ These properties are set on the **dialog window** and auto-cleanup when the dial
 ### Usage
 
 ```xml
-<!-- Menu context properties (on dialog window) -->
+<!-- Menu context properties (dialog window only — read with Window.Property) -->
 <!-- Show widget button only if widgets are allowed (not disabled) -->
 <visible>String.IsEmpty(Window.Property(disableWidgets))</visible>
 
-<!-- Subdialog properties (on dialog window) -->
-<visible>String.IsEmpty(Window.Property(skinshortcuts-dialog))</visible>
-<visible>String.IsEqual(Window.Property(skinshortcuts-dialog),widget1)</visible>
-<visible>String.IsEqual(Window.Property(skinshortcuts-suffix),.2)</visible>
+<!-- Subdialog properties (set on both — Window(home) recommended for cross-window visibility) -->
+<visible>String.IsEmpty(Window(home).Property(skinshortcuts-dialog))</visible>
+<visible>String.IsEqual(Window(home).Property(skinshortcuts-dialog),widget1)</visible>
+<visible>String.IsEqual(Window(home).Property(skinshortcuts-suffix),.2)</visible>
 ```
 
 ---
