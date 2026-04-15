@@ -138,12 +138,13 @@ class Protection:
         type: What operations to protect against:
             - "delete": Only protect against deletion
             - "action": Only protect against action changes
-            - "all": Protect against both deletion and action changes
+            - "disable": Only protect against disabling
+            - "all": Protect against deletion, action changes, and disabling
         heading: Dialog heading (can be localize string like "$LOCALIZE[123]")
         message: Dialog message (can be localize string)
     """
 
-    type: str = "all"  # "delete", "action", or "all"
+    type: str = "all"  # "delete", "action", "disable", or "all"
     heading: str = ""
     message: str = ""
 
@@ -154,6 +155,10 @@ class Protection:
     def protects_action(self) -> bool:
         """Return True if this protection applies to action changes."""
         return self.type in ("action", "all")
+
+    def protects_disable(self) -> bool:
+        """Return True if this protection applies to disabling."""
+        return self.type in ("disable", "all")
 
 
 @dataclass

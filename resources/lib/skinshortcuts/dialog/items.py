@@ -277,6 +277,13 @@ class ItemsMixin:
             xbmcgui.Dialog().ok("Cannot Disable", f"'{item.label}' is required.")
             return
 
+        if not item.disabled and item.protection and item.protection.protects_disable():
+            heading = resolve_label(item.protection.heading) or "Disable Item"
+            label = resolve_label(item.label)
+            message = resolve_label(item.protection.message) or f"Disable '{label}'?"
+            if not xbmcgui.Dialog().yesno(heading, message):
+                return
+
         new_state = not item.disabled
         self.manager.set_disabled(self.menu_id, item.name, new_state)
         self._refresh_selected_item()
