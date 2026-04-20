@@ -67,6 +67,7 @@ Widgets and groups are defined directly at the root level:
 | `condition` | No | - | Property condition (evaluated against item properties) |
 | `visible` | No | - | Kodi visibility condition (evaluated at runtime) |
 | `slot` | No | - | For `type="custom"`: widget property slot |
+| `browse` | No | `false` | `true` to allow browse-into during picker (see [Browse Into](#browse-into)) |
 
 ### Child Elements
 
@@ -114,6 +115,18 @@ The `type` attribute helps skins identify content type for styling:
 | `games` | Games |
 | `addons` | Add-ons |
 | `custom` | Custom (user-defined items) |
+
+### Browse Into
+
+By default, selecting a widget in the picker assigns the widget as-is. Set `browse="true"` to let users browse into the widget's path and pick a sub-location instead:
+
+```xml
+<widget name="movies-browser" label="Browse Movies" type="movies" browse="true">
+  <path>videodb://movies/</path>
+</widget>
+```
+
+When browsing, the user navigates directories and the first entry ("Create menu item to here") uses the current location as-is. `<content source="addons">` resolves plugin-source addons as browsable automatically, no attribute needed in that case.
 
 ### Custom Widgets
 

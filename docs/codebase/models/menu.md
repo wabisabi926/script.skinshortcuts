@@ -23,7 +23,7 @@
 | `properties` | dict | Custom properties (widget, background, etc) |
 | `submenu` | str | Submenu reference |
 
-**Properties:** `action` getter/setter for first unconditional action
+**Properties:** `action` getter/setter for last unconditional action (the destination action for display)
 
 ### Menu
 
@@ -49,13 +49,16 @@
 | Field | Type | Description |
 |-------|------|-------------|
 | `name`, `label` | str | Identifier and display |
-| `action` | str | Direct action string |
+| `actions` | list[str] | Action strings (supports multiple) |
+| `primary_action` | str | Action marked `primary="true"` for display properties |
 | `path`, `browse` | str | Path and target for browse mode |
 | `type` | str | Category label (label2) |
 | `icon`, `condition`, `visible` | str | Display/filtering |
 | `action_play`, `action_party` | str | Playlist alternatives |
 
-**Methods:** `get_action()` - Returns action or constructs from browse+path
+**Properties:** `action` - Returns `primary_action` if set, otherwise last action in list
+
+**Methods:** `get_action()` - Returns primary action or constructs from browse+path
 
 ### ShortcutGroup
 

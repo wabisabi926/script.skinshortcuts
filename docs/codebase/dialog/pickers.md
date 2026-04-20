@@ -17,7 +17,8 @@ PickersMixin provides picker dialogs for selecting shortcuts and widgets with hi
 
 | Method | Purpose |
 |--------|---------|
-| `_choose_shortcut` | Choose shortcut from groupings, apply to item |
+| `_choose_shortcut` | Choose shortcut from groupings, apply all actions to item |
+| `_get_shortcut_actions` | Get all actions from shortcut (handles browse/playlist modes) |
 | `_pick_from_groups` | Show group picker with back navigation |
 | `_pick_from_group_items` | Pick from items within a group |
 
@@ -49,9 +50,10 @@ PickersMixin provides picker dialogs for selecting shortcuts and widgets with hi
 | Method | Purpose |
 |--------|---------|
 | `_browse_path` | Browse directory with "Create menu item to here" option |
-| `_is_browsable_shortcut` | Check if shortcut has browsable path |
+| `_is_browsable_shortcut` | Shortcut opted-in via `browse` + `<path>` |
+| `_is_browsable_widget` | Widget opted-in via `browse="true"` |
 | `_is_path_browsable` | Check if path can be browsed (plugin://, addons://) |
-| `_get_browse_info_from_shortcut` | Extract path and window from shortcut |
+| `_get_browse_info_from_shortcut` | Extract path and window from opted-in shortcut |
 | `_get_browse_placeholder_for_content` | Create placeholder shortcut for addon content |
 
 ### Addon Placeholder Behavior

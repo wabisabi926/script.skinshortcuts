@@ -74,7 +74,7 @@ class ItemsMixin:
 
         index = self._get_selected_index()
 
-        if self.dialog_mode in ("widgets", "customwidget"):
+        if self.dialog_mode in ("widgets", "customwidget") or self.dialog_mode.startswith("custom-widget"):
             widget = self._pick_widget_for_add()
             if not widget:
                 return
@@ -276,6 +276,13 @@ class ItemsMixin:
         if item.required and not item.disabled:
             xbmcgui.Dialog().ok("Cannot Disable", f"'{item.label}' is required.")
             return
+
+        if not item.disabled and item.protection and item.protection.protects_disable():
+            heading = resolve_label(item.protection.heading) or "Disable Item"
+            label = resolve_label(item.label)
+            message = resolve_label(item.protection.message) or f"Disable '{label}'?"
+            if not xbmcgui.Dialog().yesno(heading, message):
+                return
 
         new_state = not item.disabled
         self.manager.set_disabled(self.menu_id, item.name, new_state)

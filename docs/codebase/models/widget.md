@@ -20,6 +20,7 @@
 | `limit` | int | Item limit |
 | `source` | str | Source type (library, playlist, addon) |
 | `slot` | str | For custom widgets: property slot |
+| `browse` | bool | Opt-in: allow browse-into during picker |
 
 **Properties:** `is_custom` - True if type=="custom"
 

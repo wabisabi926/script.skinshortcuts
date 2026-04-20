@@ -34,6 +34,7 @@ Top-level container.
 | `requires` | str | Property that must be set first |
 | `options` | list[SchemaOption] | Options for select type |
 | `type` | str | widget, background, toggle, text, number, or select |
+| `value` | str | For toggle: custom value instead of "True" |
 
 ### ButtonMapping
 

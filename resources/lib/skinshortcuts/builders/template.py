@@ -446,10 +446,12 @@ class TemplateBuilder:
             if template.menu and menu.name != template.menu:
                 continue
             if not menu.container:
-                log.warning(
-                    f"<skinshortcuts>visibility in build=\"true\" template for "
-                    f"menu '{menu.name}' but menu has no container attribute"
-                )
+                # Only warn when the template explicitly targets this menu
+                if template.menu:
+                    log.warning(
+                        f"<skinshortcuts>visibility in build=\"true\" template for "
+                        f"menu '{menu.name}' but menu has no container attribute"
+                    )
                 continue
             for idx, item in enumerate(menu.items, start=1):
                 if item.disabled:
@@ -755,13 +757,13 @@ class TemplateBuilder:
         context: dict[str, str],
         item: MenuItem,
     ) -> None:
-        """Substitute $PROPERTY[...] in variable content recursively."""
+        """Substitute $EXP/$PROPERTY/$MATH/$IF in variable content recursively."""
         if elem.text:
-            elem.text = self._substitute_property_refs(elem.text, item, context)
+            elem.text = self._substitute_text(elem.text, context, item)
         if elem.tail:
-            elem.tail = self._substitute_property_refs(elem.tail, item, context)
+            elem.tail = self._substitute_text(elem.tail, context, item)
         for attr, value in list(elem.attrib.items()):
-            elem.set(attr, self._substitute_property_refs(value, item, context))
+            elem.set(attr, self._substitute_text(value, context, item))
         for child in elem:
             self._substitute_variable_content(child, context, item)
 

@@ -125,7 +125,7 @@ Defines menu structure, shortcut picker groupings, icon sources, and action over
 | `<groupings>` | menus | — | — | Shortcut picker structure |
 | `<group>` | groupings/group | `name`, `label` | `condition`, `visible`, `icon` | Shortcut group |
 | `<shortcut>` | group | `name`, `label` | `icon`, `type`, `condition`, `visible`, `path`, `browse` | Shortcut option |
-| `<action>` | shortcut | — | — | Shortcut action |
+| `<action>` | shortcut | — | `primary` | Shortcut action (multiple allowed) |
 | `<path>` | shortcut | — | — | Browse path (for browse mode) |
 | `<content>` | group | `source` | `target`, `path`, `condition`, `visible`, `icon`, `label`, `folder` | Dynamic content |
 | `<icons>` | menus | — | — | Icon browser sources |
@@ -187,7 +187,7 @@ Defines widgets and widget picker groupings.
 | Element | Parent | Required Attributes | Optional Attributes | Description |
 |---------|--------|---------------------|---------------------|-------------|
 | `<widgets>` | — | — | — | Root element |
-| `<widget>` | widgets/group | `name`, `label` | `type`, `target`, `icon`, `condition`, `visible`, `source`, `slot` | Widget definition |
+| `<widget>` | widgets/group | `name`, `label` | `type`, `target`, `icon`, `condition`, `visible`, `source`, `slot`, `browse` | Widget definition |
 | `<path>` | widget | — | — | Content path (required except type="custom") |
 | `<limit>` | widget | — | — | Item limit |
 | `<sortby>` | widget | — | — | Sort field |
@@ -340,6 +340,7 @@ Defines property schemas, button mappings, and fallback values.
   </property>
 
   <property name="hideLabels" type="toggle" />
+  <property name="sortPreference" type="toggle" value="custom_value" />
   <property name="extraWidget" type="widget" />
   <property name="customBg" type="background" />
 
@@ -369,7 +370,7 @@ Defines property schemas, button mappings, and fallback values.
 | `<includes>` | properties | — | — | Reusable definitions |
 | `<include>` | includes | `name` | — | Include definition |
 | `<include/>` | options/fallback | `content` | `suffix` | Include reference |
-| `<property>` | properties | `name` | `type`, `requires`, `templateonly` | Property definition |
+| `<property>` | properties | `name` | `type`, `value`, `requires`, `templateonly` | Property definition |
 | `<options>` | property | — | — | Option container |
 | `<option>` | options/include | `value`, `label` | `condition` | Option value |
 | `<icon>` | option | — | `condition` | Option icon (multiple allowed) |
@@ -386,7 +387,7 @@ Defines property schemas, button mappings, and fallback values.
 | Type | Behavior |
 |------|----------|
 | `options` | Select from defined options list |
-| `toggle` | Toggle between `True` and empty |
+| `toggle` | Toggle between a value and empty. Defaults to `True`, use `value` attribute for a custom value |
 | `widget` | Opens widget picker |
 | `background` | Opens background picker |
 

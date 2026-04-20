@@ -154,12 +154,15 @@ class PropertyLoader:
         if options_elem is not None:
             options = self._parse_options(options_elem)
 
+        value = (elem.get("value") or "").strip()
+
         return SchemaProperty(
             name=name,
             template_only=template_only,
             requires=requires,
             options=options,
             type=prop_type,
+            value=value,
         )
 
     def _parse_button(

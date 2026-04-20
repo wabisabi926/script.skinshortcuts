@@ -88,6 +88,7 @@ Properties extend menu items beyond built-in fields (label, icon, action). Commo
 |-----------|----------|---------|-------------|
 | `name` | Yes | - | Property name (stored in item.properties) |
 | `type` | No | `options` | Property type: `options`, `toggle`, `text`, `number`, `widget`, `background` |
+| `value` | No | - | For `toggle` type: custom value to toggle instead of `True` |
 | `requires` | No | - | Property name that must have a value (see [Requires Check](#requires-check)) |
 | `templateonly` | No | `false` | If `true`, only available in templates, not in dialog |
 
@@ -96,7 +97,7 @@ Properties extend menu items beyond built-in fields (label, icon, action). Commo
 | Type | Behavior |
 |------|----------|
 | `options` | Select from defined options list |
-| `toggle` | Toggle between `True` and empty (cleared) |
+| `toggle` | Toggle between a value and empty. Clicking sets the property to `value` (default `True`) if it's anything else, or clears it if already set to `value`. Multiple buttons can target the same property, e.g. an options picker and a toggle that flips one specific value on/off |
 | `text` | Free text input via keyboard dialog |
 | `number` | Numeric input via numeric input dialog |
 | `widget` | Opens widget picker |
@@ -356,6 +357,9 @@ Button mappings with `suffix="true"` automatically use the dialog's suffix.
   </property>
 
   <property name="hideLabels" type="toggle" />
+
+  <!-- Toggles between "custom_value" and empty instead of "True" and empty -->
+  <property name="sortPreference" type="toggle" value="custom_value" />
 
   <buttons suffix="true">
     <button id="350" property="widgetStyle" title="Widget Style" requires="widget" />

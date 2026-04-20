@@ -57,3 +57,4 @@ DialogBaseMixin provides foundation for the management dialog: initialization, l
 | `_refresh_selected_item` | Update selected item's display |
 | `_get_selected_item` | Get currently selected MenuItem |
 | `_get_item_property` | Get property with suffix applied |
+| `_is_widget_dependent` | Check if a property depends on a widget via schema requires |

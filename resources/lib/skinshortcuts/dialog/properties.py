@@ -352,7 +352,7 @@ class PropertiesMixin:
             self._log(f"Widget selected: {result.name}")
             self._set_widget_properties(item, prefix, result)
 
-            if self.dialog_mode in ("widgets", "customwidget"):
+            if self.dialog_mode in ("widgets", "customwidget") or self.dialog_mode.startswith("custom-widget"):
                 new_label = resolve_label(result.label)
                 self.manager.set_label(self.menu_id, item.name, new_label)
                 item.label = new_label
@@ -681,7 +681,8 @@ class PropertiesMixin:
     def _handle_toggle_property(self, prop, item: MenuItem, button, prop_name: str) -> None:
         """Handle a toggle-type property.
 
-        Toggles between "True" and empty (cleared).
+        Toggles between a value and empty (cleared).
+        Uses prop.value if set, otherwise defaults to "True".
 
         Args:
             prop: The property schema
@@ -689,13 +690,14 @@ class PropertiesMixin:
             button: The button mapping
             prop_name: Effective property name (may include suffix)
         """
+        toggle_value = (prop.value if prop else "") or "True"
         current_value = item.properties.get(prop_name, "")
-        if current_value:
+        if current_value == toggle_value:
             self._log(f"Toggling {prop_name} OFF for item {item.name}")
             self._set_item_property(item, prop_name, None, apply_suffix=False)
         else:
             self._log(f"Toggling {prop_name} ON for item {item.name}")
-            self._set_item_property(item, prop_name, "True", apply_suffix=False)
+            self._set_item_property(item, prop_name, toggle_value, apply_suffix=False)
 
         self._refresh_selected_item()
 

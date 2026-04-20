@@ -356,6 +356,21 @@ Reads from `item.properties["widgetStyle"]`.
 
 First matching condition wins. Empty condition is default.
 
+### Override Pattern
+
+When one property should override another based on a toggle, use mutually exclusive conditions so first-wins doesn't block the override:
+
+```xml
+<!-- Override: when "useCustomSort" toggle is set, use fixed value -->
+<property name="sortby" condition="useCustomSort">custom_value</property>
+<!-- Default: otherwise read from the item property -->
+<property name="sortby" condition="!useCustomSort" from="widgetSortby" />
+```
+
+The `!useCustomSort` negation keeps the two branches mutually exclusive. Without it, the first property sets the value and the second's `from` would always overwrite (since `from` always wins when set).
+
+This pattern lets a skinner bind two UI controls to the same effective output: a full picker for the default property, plus a quick toggle that overrides it when enabled.
+
 ### Built-in Sources
 
 These are special values available in `from` attributes and `$PROPERTY[]`:
@@ -1062,6 +1077,14 @@ Generates per menu item:
 ```xml
 <variable name="Background-movies">...</variable>
 <variable name="Background-tvshows">...</variable>
+```
+
+Variable content supports the same expression substitution as raw template controls: `$PROPERTY[...]` for item properties, `$MATH[...]` for arithmetic, `$IF[...]` for conditionals, and `$EXP[...]` for expression refs. Example:
+
+```xml
+<variable name="widgetContainer" output="WidgetContainer-$PROPERTY[id]">
+    <value>$MATH[id * 100 + 3101]</value>
+</variable>
 ```
 
 ### Global Definitions

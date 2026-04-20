@@ -138,12 +138,13 @@ class Protection:
         type: What operations to protect against:
             - "delete": Only protect against deletion
             - "action": Only protect against action changes
-            - "all": Protect against both deletion and action changes
+            - "disable": Only protect against disabling
+            - "all": Protect against deletion, action changes, and disabling
         heading: Dialog heading (can be localize string like "$LOCALIZE[123]")
         message: Dialog message (can be localize string)
     """
 
-    type: str = "all"  # "delete", "action", or "all"
+    type: str = "all"  # "delete", "action", "disable", or "all"
     heading: str = ""
     message: str = ""
 
@@ -155,6 +156,10 @@ class Protection:
         """Return True if this protection applies to action changes."""
         return self.type in ("action", "all")
 
+    def protects_disable(self) -> bool:
+        """Return True if this protection applies to disabling."""
+        return self.type in ("disable", "all")
+
 
 @dataclass
 class Shortcut:
@@ -163,7 +168,7 @@ class Shortcut:
     Attributes:
         name: Unique identifier
         label: Display label (can be localize string ID)
-        action: The action to execute (if not using browse)
+        actions: Action strings to execute (supports multiple)
         path: The path to browse (if using browse mode)
         browse: Target window for browse mode ("videos", "music", "pictures", "programs")
                 When set, path is opened via ActivateWindow({browse}, {path}, return)
@@ -174,7 +179,8 @@ class Shortcut:
 
     name: str
     label: str
-    action: str = ""
+    actions: list[str] = field(default_factory=list)
+    primary_action: str = ""  # Action marked primary="true", for display props
     path: str = ""
     browse: str = ""
     type: str = ""
@@ -184,11 +190,18 @@ class Shortcut:
     action_play: str = ""
     action_party: str = ""
 
+    @property
+    def action(self) -> str:
+        """Primary action for display. Uses explicit primary, falls back to last action."""
+        if self.primary_action:
+            return self.primary_action
+        return self.actions[-1] if self.actions else ""
+
     def get_action(self) -> str:
-        """Get the resolved action string.
+        """Get the resolved primary action string.
 
         If browse is set, constructs ActivateWindow action from path.
-        Otherwise returns the action directly.
+        Otherwise returns the primary action directly.
         """
         if self.browse and self.path:
             from ..constants import WINDOW_MAP
@@ -239,20 +252,25 @@ class MenuItem:
 
     @property
     def action(self) -> str:
-        """Primary action (first unconditional action, for backwards compat)."""
+        """Primary action for display (last unconditional action).
+
+        For multi-action items the last action is typically the destination,
+        preceding actions are setup (Dialog.Close, SetProperty, etc).
+        """
+        last = ""
         for act in self.actions:
             if not act.condition:
-                return act.action
-        return self.actions[0].action if self.actions else ""
+                last = act.action
+        return last or (self.actions[0].action if self.actions else "")
 
     @action.setter
     def action(self, value: str) -> None:
-        """Set primary action (first unconditional action)."""
-        for act in self.actions:
+        """Set primary action (last unconditional action)."""
+        for act in reversed(self.actions):
             if not act.condition:
                 act.action = value
                 return
-        self.actions.insert(0, Action(action=value))
+        self.actions.append(Action(action=value))
 
 
 @dataclass

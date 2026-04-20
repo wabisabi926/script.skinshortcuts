@@ -35,6 +35,10 @@ class ResolvedShortcut:
     action_play: str = ""
     action_party: str = ""
     content_type: str = ""
+    # Set for browsable items (plugin-source addons, etc.). When populated, picker
+    # offers browse-into and constructs ActivateWindow({browse_window},{browse_path},return).
+    browse_path: str = ""
+    browse_window: str = ""
 
 
 def scan_playlist_files(directory: str) -> list[tuple[str, str]]:
@@ -324,18 +328,26 @@ class ContentProvider:
 
             if addon_id:
                 if content == "executable":
-                    action = f"RunAddon({addon_id})"
-                else:
-                    window = window_map.get(content, "videos")
-                    action = f"ActivateWindow({window},plugin://{addon_id}/,return)"
-
-                shortcuts.append(
-                    ResolvedShortcut(
-                        label=name,
-                        action=action,
-                        icon=thumb or "DefaultAddon.png",
+                    # Executables fire-and-forget, no browse-into.
+                    shortcuts.append(
+                        ResolvedShortcut(
+                            label=name,
+                            action=f"RunAddon({addon_id})",
+                            icon=thumb or "DefaultAddon.png",
+                        )
                     )
-                )
+                else:
+                    # Plugin-source addons are browsable — picker constructs action at pick time.
+                    window = window_map.get(content, "videos")
+                    shortcuts.append(
+                        ResolvedShortcut(
+                            label=name,
+                            action="",
+                            icon=thumb or "DefaultAddon.png",
+                            browse_path=f"plugin://{addon_id}/",
+                            browse_window=window,
+                        )
+                    )
 
         self._cache[cache_key] = shortcuts
         return shortcuts
