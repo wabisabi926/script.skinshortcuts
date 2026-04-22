@@ -756,8 +756,8 @@ Remove these controls from your dialog XML.
 
 | Property               | Description                            |
 | ---------------------- | -------------------------------------- |
-| `skinshortcuts-dialog` | Current subdialog mode (dialog-scoped) |
-| `skinshortcuts-suffix` | Property suffix (dialog-scoped)        |
+| `skinshortcuts-dialog` | Current subdialog mode (set on both dialog and Home windows; use `Window(home).Property` for cross-window visibility) |
+| `skinshortcuts-suffix` | Property suffix (set on both dialog and Home windows; use `Window(home).Property` for cross-window visibility) |
 
 ***
 

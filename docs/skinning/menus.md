@@ -381,7 +381,7 @@ Items with `required="true"` cannot be deleted or disabled. If a user previously
 
 | Attribute | Default | Values | Description |
 |-----------|---------|--------|-------------|
-| `type` | `all` | `delete`, `action`, `all` | What to protect |
+| `type` | `all` | `delete`, `action`, `disable`, `all` | What to protect (`all` covers delete + action + disable) |
 | `heading` | - | String | Dialog heading |
 | `message` | - | String | Dialog message |
 
