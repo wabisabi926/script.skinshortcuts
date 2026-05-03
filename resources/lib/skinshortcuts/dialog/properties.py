@@ -133,6 +133,7 @@ from ..localize import resolve_label
 from ..models import (
     Background,
     BackgroundType,
+    Content,
     MenuItem,
     PlaylistSource,
     Widget,
@@ -194,7 +195,7 @@ class PropertiesMixin:
 
         def _pick_widget_from_groups(
             self,
-            items: list[WidgetGroup | Widget],
+            items: list[WidgetGroup | Widget | Content],
             item_props: dict[str, str],
             slot: str = "",
         ) -> Widget | None | Literal[False]: ...
@@ -390,6 +391,9 @@ class PropertiesMixin:
 
         self._set_item_property(item, prefix, widget.name, related, apply_suffix=False)
 
+        if widget.type != "custom" and self.manager is not None:
+            self.manager.clear_custom_widget(self.menu_id, item.name, suffix)
+
     def _clear_widget_properties(self, item: MenuItem, prefix: str) -> None:
         """Clear all widget properties for a prefix."""
         self._log(f"Clearing widget properties for {prefix}")
@@ -410,6 +414,9 @@ class PropertiesMixin:
         }
 
         self._set_item_property(item, prefix, "", related, apply_suffix=False)
+
+        if self.manager is not None:
+            self.manager.clear_custom_widget(self.menu_id, item.name, suffix)
 
     def _handle_background_property(self, prop, item: MenuItem, prop_name: str) -> None:
         """Handle a background-type property.

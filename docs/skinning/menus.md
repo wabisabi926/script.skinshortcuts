@@ -125,6 +125,23 @@ Link a submenu to an item:
 </item>
 ```
 
+### Auto-Link by Shortcut Name
+
+When a user picks a shortcut, if a `<submenu>` shares its `name`, that submenu is attached to the new item automatically. No matching `<item submenu="...">` needs to exist in `<menu>`.
+
+```xml
+<shortcut name="movies" label="$LOCALIZE[342]" icon="DefaultMovies.png">
+  <action>ActivateWindow(Videos,videodb://movies/titles/,return)</action>
+</shortcut>
+
+<submenu name="movies">
+  <item name="recent">
+    <label>$LOCALIZE[20387]</label>
+    <action>ActivateWindow(Videos,videodb://recentlyaddedmovies/,return)</action>
+  </item>
+</submenu>
+```
+
 ---
 
 ## Item Element
@@ -463,7 +480,7 @@ For finer control, use `visible` on individual `<group>` elements to show/hide g
 | `icon` | No | Icon (default: `DefaultShortcut.png`) |
 | `type` | No | Category label shown as secondary text |
 | `condition` | No | Property condition |
-| `visible` | No | Kodi visibility condition |
+| `visible` | No | Hides the shortcut from the picker when this Kodi condition is false |
 | `browse` | No | Target window for browse mode (`videos`, `music`, `pictures`, `programs`) |
 
 ### `<shortcut>` Child Elements
@@ -472,6 +489,16 @@ For finer control, use `visible` on individual `<group>` elements to show/hide g
 |---------|-------------|
 | `<action>` | Action string (for action mode). Multiple allowed. Supports `primary="true"` to set which action is used for display properties (defaults to the last action) |
 | `<path>` | Content path (for browse mode) |
+| `<visible>` | Kodi visibility condition baked into the resulting menu item when this shortcut is picked. Multiple elements are joined with ` + ` |
+
+The attribute and child element are independent: the attribute gates picker visibility, the child element travels with the picked item. A shortcut can use either, both, or neither.
+
+```xml
+<shortcut name="cancel-alarm" label="$LOCALIZE[20151]" icon="...">
+  <action>CancelAlarm(shutdowntimer)</action>
+  <visible>System.HasAlarm(shutdowntimer)</visible>
+</shortcut>
+```
 
 ### Shortcut Modes
 
@@ -559,7 +586,7 @@ Valid `target` values depend on the `source` attribute. Values are based on Kodi
 | `addons` | `video`, `videos`, `audio`, `music`, `image`, `pictures`, `executable`, `programs`, `game`, `games` | JSON-RPC values (`video`, `audio`, `image`, `executable`, `game`) and window names (`videos`, `music`, `pictures`, `programs`, `games`) both accepted |
 | `sources` | `video`, `music`, `pictures`, `files`, `programs` | Matches Kodi's Files.Media values |
 | `playlists` | `video`, `music` | Matches playlist directory names |
-| `nodes` | `video`, `music` | Library node types |
+| `nodes` | `video`, `music`, `library` | Library node types; `library` shows Videos and Music as two browsable entries to drill into |
 | `pvr` | `tv`, `radio` | PVR channel types |
 | `library` | See [Library Target Values](widgets.md#library-target-values) | Genre, year, studio, tag, actor queries |
 | `favourites` | (none) | No target needed |
@@ -611,7 +638,7 @@ A shortcut is only browsable in the picker when it explicitly opts in via the `b
 </shortcut>
 ```
 
-Shortcuts that specify only `<action>` (even an `ActivateWindow` to a browsable path) are fire-and-forget, so no browse-into is offered. Dynamic `<content source="addons">` resolves plugin-source addons as browsable automatically; `RunAddon` executables stay single-click.
+Shortcuts that specify only `<action>` (even an `ActivateWindow` to a browsable path) are fire-and-forget, so no browse-into is offered. Dynamic `<content source="addons">` resolves plugin-source addons as browsable automatically (`RunAddon` executables stay single-click), and `<content source="sources">` resolves user-defined media sources as browsable.
 
 > **See also:** [Conditions](conditions.md) for `condition` and `visible` attribute syntax
 

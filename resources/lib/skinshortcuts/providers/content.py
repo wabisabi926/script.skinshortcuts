@@ -24,6 +24,48 @@ log = get_logger("ContentProvider")
 PLAYLIST_EXTENSIONS = (".xsp", ".m3u", ".m3u8", ".pls")
 
 
+# Target aliases: map skinner-facing target values to the canonical form each
+# JSON-RPC endpoint expects.
+
+# Files.Media accepts: video, music, pictures, files, programs.
+_SOURCES_TARGET_ALIASES: dict[str, str] = {
+    "video": "video",
+    "videos": "video",
+    "music": "music",
+    "pictures": "pictures",
+    "picture": "pictures",
+    "files": "files",
+    "file": "files",
+    "programs": "programs",
+    "program": "programs",
+}
+
+# Addons.GetAddons content accepts: video, audio, image, executable, game.
+# Skinner-facing plural/window-name forms map to these.
+_ADDONS_TARGET_ALIASES: dict[str, str] = {
+    "video": "video",
+    "videos": "video",
+    "audio": "audio",
+    "music": "audio",
+    "image": "image",
+    "images": "image",
+    "picture": "image",
+    "pictures": "image",
+    "executable": "executable",
+    "program": "executable",
+    "programs": "executable",
+    "game": "game",
+    "games": "game",
+}
+
+# Smart-playlist directory scan filter: video or music only.
+_PLAYLIST_TARGET_ALIASES: dict[str, str] = {
+    "video": "video",
+    "videos": "video",
+    "music": "music",
+}
+
+
 @dataclass
 class ResolvedShortcut:
     """A shortcut resolved from dynamic content."""
@@ -119,14 +161,13 @@ class ContentProvider:
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        media_map = {
-            "video": "video",
-            "music": "music",
-            "pictures": "pictures",
-            "files": "files",
-            "programs": "programs",
-        }
-        media = media_map.get(target, "video")
+        media = _SOURCES_TARGET_ALIASES.get(target)
+        if media is None:
+            log.warning(
+                f"sources: unknown target '{target}'. Valid: "
+                "video/videos, music, pictures/picture, files/file, programs/program"
+            )
+            return []
 
         result = self._jsonrpc("Files.GetSources", {"media": media})
         if not result or "sources" not in result:
@@ -139,7 +180,7 @@ class ContentProvider:
             "files": "files",
             "programs": "programs",
         }
-        window = window_map.get(media, "videos")
+        window = window_map[media]
 
         shortcuts = []
         for source in result["sources"]:
@@ -151,6 +192,8 @@ class ContentProvider:
                         label=label,
                         action=f"ActivateWindow({window},{path},return)",
                         icon="DefaultFolder.png",
+                        browse_path=path,
+                        browse_window=window,
                     )
                 )
 
@@ -182,26 +225,32 @@ class ContentProvider:
         if cache_key in self._cache:
             return self._cache[cache_key]
 
+        if target:
+            normalized = _PLAYLIST_TARGET_ALIASES.get(target)
+            if normalized is None:
+                log.warning(
+                    f"playlists: unknown target '{target}'. Valid: video/videos, music"
+                )
+                return []
+        else:
+            normalized = ""
+
         if custom_path:
             paths = [custom_path]
         else:
             base = self._get_playlists_base_path()
-            if target == "video":
+            if normalized == "video":
                 paths = [f"{base}video/", f"{base}mixed/"]
-            elif target == "music":
+            elif normalized == "music":
                 paths = [f"{base}music/", f"{base}mixed/"]
             else:
                 paths = [f"{base}video/", f"{base}music/", f"{base}mixed/"]
 
-        window_map = {
-            "video": "videos",
-            "music": "music",
-        }
-        default_window = window_map.get(target, "videos")
+        default_window = "music" if normalized == "music" else "videos"
 
         shortcuts = []
         for path in paths:
-            shortcuts.extend(self._scan_playlist_directory(path, default_window, target))
+            shortcuts.extend(self._scan_playlist_directory(path, default_window, normalized))
 
         self._cache[cache_key] = shortcuts
         return shortcuts
@@ -209,10 +258,14 @@ class ContentProvider:
     def _scan_playlist_directory(
         self, directory: str, default_window: str, target: str = ""
     ) -> list[ResolvedShortcut]:
-        """Scan a directory for playlist files and convert to shortcuts."""
+        """Scan a directory for playlist files and convert to shortcuts.
+
+        `target` is the normalized form ("video", "music", or "") from
+        `_resolve_playlists`; unknown values are already rejected upstream.
+        """
         shortcuts = []
-        filter_video = target in ("video", "videos")
-        filter_music = target in ("audio", "music")
+        filter_video = target == "video"
+        filter_music = target == "music"
 
         video_types = ("movies", "tvshows", "episodes", "musicvideos")
         music_types = ("songs", "albums", "artists")
@@ -287,19 +340,13 @@ class ContentProvider:
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        content_map = {
-            "video": "video",
-            "videos": "video",
-            "audio": "audio",
-            "music": "audio",
-            "image": "image",
-            "pictures": "image",
-            "executable": "executable",
-            "programs": "executable",
-            "game": "game",
-            "games": "game",
-        }
-        content = content_map.get(target, "video")
+        content = _ADDONS_TARGET_ALIASES.get(target)
+        if content is None:
+            log.warning(
+                f"addons: unknown target '{target}'. Valid: "
+                "video/videos, audio/music, image/pictures, executable/programs, game/games"
+            )
+            return []
 
         window_map = {
             "video": "videos",
@@ -549,7 +596,9 @@ class ContentProvider:
         """Resolve library nodes (navigation structure from XML files).
 
         Args:
-            target: Node type - "video" or "music"
+            target: Library type (``video``, ``music``, ``video_flat``).
+                    ``library`` / ``all`` / empty returns video and music
+                    as two browsable parent entries.
 
         Returns:
             List of shortcuts for top-level library navigation nodes.
@@ -559,85 +608,79 @@ class ContentProvider:
             return self._cache[cache_key]
 
         target_lower = target.lower()
-        if target_lower not in ("video", "videos", "music"):
-            return []
-
-        # Normalize for Kodi library path (uses "video" not "videos")
-        lib_type = "video" if target_lower in ("video", "videos") else "music"
-        base_path = f"special://xbmc/system/library/{lib_type}/"
-        window = "videos" if lib_type == "video" else "music"
-
-        shortcuts = []
-        try:
-            dirs, _files = xbmcvfs.listdir(base_path)
-        except Exception:
+        if target_lower in ("library", "all", ""):
+            shortcuts = [
+                ResolvedShortcut(
+                    label=xbmc.getLocalizedString(3),  # "Videos"
+                    action="ActivateWindow(videos,library://video/,return)",
+                    icon="DefaultVideo.png",
+                    browse_path="library://video/",
+                    browse_window="videos",
+                ),
+                ResolvedShortcut(
+                    label=xbmc.getLocalizedString(2),  # "Music"
+                    action="ActivateWindow(music,library://music/,return)",
+                    icon="DefaultMusicAlbums.png",
+                    browse_path="library://music/",
+                    browse_window="music",
+                ),
+            ]
             self._cache[cache_key] = shortcuts
             return shortcuts
 
-        for dirname in sorted(dirs):
-            node_path = f"{base_path}{dirname}/"
-            index_file = f"{node_path}index.xml"
-
-            label, icon, order = self._parse_library_node(index_file)
-            if label:
-                shortcuts.append(
-                    ResolvedShortcut(
-                        label=label,
-                        action=f"ActivateWindow({window},library://{target_lower}/{dirname}/,return)",
-                        icon=icon or f"Default{target_lower.capitalize()}.png",
-                        label2=str(order),
-                    )
-                )
-
-        shortcuts.sort(key=lambda s: int(s.label2) if s.label2.isdigit() else 999)
-        for shortcut in shortcuts:
-            shortcut.label2 = ""
-
+        lib_type = "video" if target_lower == "videos" else target_lower
+        shortcuts = self._collect_nodes_for_type(lib_type)
         self._cache[cache_key] = shortcuts
         return shortcuts
 
-    def _parse_library_node(self, index_file: str) -> tuple[str, str, int]:
-        """Parse a library node index.xml file.
+    def _collect_nodes_for_type(self, lib_type: str) -> list[ResolvedShortcut]:
+        """Collect top-level library nodes for a single library type.
 
-        Returns:
-            Tuple of (label, icon, order). Label is empty string on error.
+        Uses Kodi's Files.GetDirectory so user-customized nodes (via addons like
+        plugin.library.node.editor) are merged with system defaults, and hidden
+        nodes are excluded.
         """
-        try:
-            f = xbmcvfs.File(index_file)
-            try:
-                content = f.read()
-            finally:
-                f.close()
+        is_music = lib_type == "music"
+        media = "music" if is_music else "video"
+        window = "music" if is_music else "videos"
+        directory = f"library://{lib_type}/"
 
-            if not content:
-                return "", "", 999
+        result = self._jsonrpc(
+            "Files.GetDirectory",
+            {
+                "directory": directory,
+                "media": media,
+                "properties": ["title", "thumbnail", "art"],
+            },
+        )
+        if not result or "files" not in result:
+            return []
 
-            import xml.etree.ElementTree as ET
+        shortcuts: list[ResolvedShortcut] = []
+        for entry in result["files"]:
+            path = entry.get("file", "")
+            label = entry.get("label") or entry.get("title") or ""
+            if not label or not path:
+                continue
+            icon = self._normalize_image(entry.get("art", {}).get("icon", ""))
+            thumb = entry.get("thumbnail", "")
+            shortcuts.append(
+                ResolvedShortcut(
+                    label=label,
+                    action=f"ActivateWindow({window},{path},return)",
+                    icon=icon or thumb or "DefaultFolder.png",
+                    browse_path=path,
+                    browse_window=window,
+                )
+            )
+        return shortcuts
 
-            root = ET.fromstring(content)
-            if root.tag != "node":
-                return "", "", 999
-
-            label = ""
-            label_elem = root.find("label")
-            if label_elem is not None and label_elem.text:
-                label = label_elem.text
-                if not label.startswith("$"):
-                    label = f"$LOCALIZE[{label}]" if label.isdigit() else label
-
-            icon = ""
-            icon_elem = root.find("icon")
-            if icon_elem is not None and icon_elem.text:
-                icon = icon_elem.text
-
-            order = 999
-            order_attr = root.get("order")
-            if order_attr and order_attr.isdigit():
-                order = int(order_attr)
-
-            return label, icon, order
-        except Exception:
-            return "", "", 999
+    @staticmethod
+    def _normalize_image(path: str) -> str:
+        """Strip Kodi's image:// wrapper from icon paths so skins can use them directly."""
+        if path.startswith("image://") and path.endswith("/"):
+            return path[len("image://"):-1]
+        return path
 
     def _get_video_genres(self, media_type: str) -> list[ResolvedShortcut]:
         """Get video genres (movies or TV shows)."""
