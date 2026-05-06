@@ -537,7 +537,9 @@ class TemplateBuilder:
                 context = self._build_context(template, output, item, idx, menu)
 
                 if template.controls is not None:
-                    controls = self._process_controls(template.controls, context, item, menu)
+                    controls = self._process_controls(
+                        template.controls, context, item, menu, variable_map, output.suffix
+                    )
                     if controls is not None:
                         for child in controls:
                             include.append(child)
@@ -651,10 +653,14 @@ class TemplateBuilder:
         var_def: VariableDefinition,
         context: dict[str, str],
         item: MenuItem,
+        parent_context: dict[str, str] | None = None,
+        parent_item: MenuItem | None = None,
     ) -> ET.Element | None:
         """Build a Kodi <variable> element from a variable definition.
 
         Checks the variable's condition, substitutes $PROPERTY[...] placeholders.
+        When parent context/item are supplied (items-template scope), $PARENT[...]
+        and $MATH[...] also resolve in the output name and content.
         """
         if var_def.condition:
             condition = self._expand_expressions(var_def.condition)
@@ -665,17 +671,21 @@ class TemplateBuilder:
             return None
         var_elem = copy.deepcopy(var_def.content)
 
-        if var_def.output:
-            output_name = self._substitute_property_refs(var_def.output, item, context)
+        raw_name = var_def.output or var_elem.get("name") or var_def.name
+        if parent_item is not None:
+            output_name = self._substitute_text(
+                raw_name, context, item, None, parent_context, parent_item
+            )
         else:
-            original_name = var_elem.get("name") or var_def.name
-            output_name = self._substitute_property_refs(original_name, item, context)
+            output_name = self._substitute_property_refs(raw_name, item, context)
 
         var_elem.set("name", output_name)
         if "output" in var_elem.attrib:
             del var_elem.attrib["output"]
         self._expand_iterate_values(var_elem, item, context)
-        self._substitute_variable_content(var_elem, context, item)
+        self._substitute_variable_content(
+            var_elem, context, item, parent_context, parent_item
+        )
 
         return var_elem
 
@@ -787,6 +797,8 @@ class TemplateBuilder:
         item: MenuItem,
         variable_map: dict[str, ET.Element],
         override_suffix: str = "",
+        parent_context: dict[str, str] | None = None,
+        parent_item: MenuItem | None = None,
     ) -> None:
         """Build variables from a variableGroup reference.
 
@@ -795,6 +807,8 @@ class TemplateBuilder:
         Handles nested group references recursively.
 
         override_suffix: If provided, overrides the group_ref's suffix.
+        parent_context/parent_item: Items-template scope; enables $PARENT[...] in
+        variable output and content.
         """
         if group_ref.condition:
             condition = self._expand_expressions(group_ref.condition)
@@ -813,7 +827,9 @@ class TemplateBuilder:
             nested_group_ref = VariableGroupReference(
                 name=nested_ref.name, suffix=suffix, condition=""
             )
-            self._build_variable_group(nested_group_ref, context, item, variable_map)
+            self._build_variable_group(
+                nested_group_ref, context, item, variable_map, "", parent_context, parent_item
+            )
 
         for var_ref in var_group.references:
             condition = var_ref.condition
@@ -829,7 +845,7 @@ class TemplateBuilder:
             if not var_def:
                 continue
 
-            var_elem = self._build_variable(var_def, context, item)
+            var_elem = self._build_variable(var_def, context, item, parent_context, parent_item)
             if var_elem is not None:
                 self._add_variable(var_elem, variable_map)
 
@@ -838,16 +854,30 @@ class TemplateBuilder:
         elem: ET.Element,
         context: dict[str, str],
         item: MenuItem,
+        parent_context: dict[str, str] | None = None,
+        parent_item: MenuItem | None = None,
     ) -> None:
-        """Substitute $EXP/$PROPERTY/$MATH/$IF in variable content recursively."""
+        """Substitute $EXP/$PROPERTY/$MATH/$IF in variable content recursively.
+
+        $PARENT[...] also resolves when parent_item is supplied (items-template scope).
+        """
         if elem.text:
-            elem.text = self._substitute_text(elem.text, context, item)
+            elem.text = self._substitute_text(
+                elem.text, context, item, None, parent_context, parent_item
+            )
         if elem.tail:
-            elem.tail = self._substitute_text(elem.tail, context, item)
+            elem.tail = self._substitute_text(
+                elem.tail, context, item, None, parent_context, parent_item
+            )
         for attr, value in list(elem.attrib.items()):
-            elem.set(attr, self._substitute_text(value, context, item))
+            elem.set(
+                attr,
+                self._substitute_text(value, context, item, None, parent_context, parent_item),
+            )
         for child in elem:
-            self._substitute_variable_content(child, context, item)
+            self._substitute_variable_content(
+                child, context, item, parent_context, parent_item
+            )
 
     def _resolve_property(
         self,
@@ -1291,10 +1321,12 @@ class TemplateBuilder:
         context: dict[str, str],
         item: MenuItem,
         menu: Menu,
+        variable_map: dict[str, ET.Element] | None = None,
+        output_suffix: str = "",
     ) -> ET.Element | None:
         """Process controls XML, applying substitutions."""
         result = copy.deepcopy(controls)
-        self._process_element(result, context, item, menu)
+        self._process_element(result, context, item, menu, variable_map, output_suffix)
         self._remove_empty_elements(result)
 
         return result
@@ -1315,6 +1347,8 @@ class TemplateBuilder:
         context: dict[str, str],
         item: MenuItem,
         menu: Menu,
+        variable_map: dict[str, ET.Element] | None = None,
+        output_suffix: str = "",
     ) -> None:
         """Recursively process an element, applying substitutions."""
         if elem.tag == "skinshortcuts":
@@ -1371,12 +1405,16 @@ class TemplateBuilder:
 
         children_to_remove = []
         for child in elem:
-            self._process_element(child, context, item, menu)
+            self._process_element(child, context, item, menu, variable_map, output_suffix)
             if child.get("_skinshortcuts_remove"):
                 children_to_remove.append(child)
 
-        self._handle_skinshortcuts_include(elem, context, item, menu)
-        self._handle_skinshortcuts_items(elem, context, item, menu)
+        self._handle_skinshortcuts_include(
+            elem, context, item, menu, variable_map, output_suffix
+        )
+        self._handle_skinshortcuts_items(
+            elem, context, item, menu, variable_map, output_suffix
+        )
         self._handle_skinshortcuts_onclick(elem, item, menu)
 
         for child in children_to_remove:
@@ -1404,6 +1442,8 @@ class TemplateBuilder:
         context: dict[str, str],
         item: MenuItem,
         menu: Menu,
+        variable_map: dict[str, ET.Element] | None = None,
+        output_suffix: str = "",
     ) -> None:
         """Handle <skinshortcuts include="..."/> element replacements.
 
@@ -1423,7 +1463,9 @@ class TemplateBuilder:
         for i, child, include_name, wrap in reversed(children_to_replace):
             include_def = self.schema.get_include(include_name)
             if include_def and include_def.controls is not None:
-                expanded = self._process_controls(include_def.controls, context, item, menu)
+                expanded = self._process_controls(
+                    include_def.controls, context, item, menu, variable_map, output_suffix
+                )
                 if expanded is not None:
                     tail = child.tail
                     elem.remove(child)
@@ -1450,6 +1492,8 @@ class TemplateBuilder:
         context: dict[str, str],
         item: MenuItem,
         _menu: Menu,
+        variable_map: dict[str, ET.Element] | None = None,
+        output_suffix: str = "",
     ) -> None:
         """Handle <skinshortcuts insert="X" /> submenu iteration.
 
@@ -1513,6 +1557,19 @@ class TemplateBuilder:
                 self._apply_items_transformations_from_definition(
                     sub_context, sub_item, items_def, context, item
                 )
+
+                if variable_map is not None:
+                    for group_ref in items_def.variable_groups:
+                        effective_suffix = self._combine_suffixes(output_suffix, group_ref.suffix)
+                        self._build_variable_group(
+                            group_ref,
+                            sub_context,
+                            sub_item,
+                            variable_map,
+                            effective_suffix,
+                            parent_context=context,
+                            parent_item=item,
+                        )
 
                 for out_elem in output_elems:
                     cloned = copy.deepcopy(out_elem)
