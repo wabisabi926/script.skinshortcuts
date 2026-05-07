@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .builders import IncludesBuilder
-from .constants import USERDATA_VERSION
 from .loaders import (
     load_backgrounds,
     load_menus,
@@ -18,7 +17,7 @@ from .loaders import (
 )
 from .models import Background, Menu, Widget
 from .models.background import BackgroundConfig, BackgroundGroup
-from .models.menu import ActionOverride, MenuConfig, SubDialog
+from .models.menu import ActionOverride, SubDialog
 from .models.property import PropertySchema
 from .models.template import TemplateSchema
 from .models.views import ViewConfig
@@ -28,8 +27,6 @@ from .userdata import (
     _create_item_from_override,
     load_userdata,
     merge_menu,
-    migrate_userdata,
-    save_userdata,
 )
 
 
@@ -46,6 +43,8 @@ class SkinConfig:
     templates: TemplateSchema = field(default_factory=TemplateSchema)
     property_schema: PropertySchema = field(default_factory=PropertySchema)
     subdialogs: list[SubDialog] = field(default_factory=list)
+    # transitional: legacy submenu key count from pre-32 userdata, drop a few betas after 32
+    legacy_userdata_keys: int = 0
 
     @property
     def widgets(self) -> list[Widget]:
@@ -97,9 +96,6 @@ class SkinConfig:
 
         userdata = load_userdata(userdata_path) if load_user else UserData()
 
-        if load_user:
-            _run_userdata_migrations(userdata, menu_config, userdata_path)
-
         template_map = {m.name: m for m in menu_config.menus if m.is_submenu}
 
         referenced_templates: set[str] = set()
@@ -117,13 +113,19 @@ class SkinConfig:
 
         menus = []
         skin_menu_names = set()
+        top_level_names: set[str] = set()
         for menu in menu_config.menus:
             skin_menu_names.add(menu.name)
+            if not menu.is_submenu:
+                top_level_names.add(menu.name)
             if menu.is_submenu:
                 if menu.name in referenced_templates:
                     continue
-                _apply_action_overrides(menu, menu_config.action_overrides)
-                menus.append(menu)
+                # source="N" lookups read flat keys; merge user customizations there too
+                override = userdata.menus.get(menu.name)
+                merged = merge_menu(menu, override) if override else menu
+                _apply_action_overrides(merged, menu_config.action_overrides)
+                menus.append(merged)
                 continue
             override = userdata.menus.get(menu.name)
             merged = merge_menu(menu, override)
@@ -149,6 +151,35 @@ class SkinConfig:
                 _apply_action_overrides(instance, menu_config.action_overrides)
                 menus.append(instance)
 
+        # legacy = won't render until rewritten to per-item form
+        item_names_in_top_level: set[str] = set()
+        for top_menu in menu_config.menus:
+            if top_menu.is_submenu:
+                continue
+            for item in top_menu.items:
+                item_names_in_top_level.add(item.name)
+        for top_name in top_level_names:
+            top_override = userdata.menus.get(top_name)
+            if not top_override:
+                continue
+            for item in top_override.items:
+                if item.name:
+                    item_names_in_top_level.add(item.name)
+
+        legacy_keys = 0
+        for menu_name, menu_override in userdata.menus.items():
+            if not menu_override.items:
+                continue
+            if menu_name in top_level_names:
+                continue
+            if "/" in menu_name:
+                continue
+            if menu_name in referenced_templates:
+                legacy_keys += 1
+                continue
+            if menu_name not in skin_menu_names and menu_name in item_names_in_top_level:
+                legacy_keys += 1
+
         for menu_name, menu_override in userdata.menus.items():
             if menu_name in skin_menu_names:
                 continue
@@ -172,6 +203,7 @@ class SkinConfig:
             templates=templates,
             property_schema=property_schema,
             subdialogs=menu_config.subdialogs,
+            legacy_userdata_keys=legacy_keys,
         )
 
     def get_widget(self, widget_name: str) -> Widget | None:
@@ -289,26 +321,6 @@ class SkinConfig:
                     for key, value in widget.to_properties().items():
                         if key not in item.properties:
                             item.properties[key] = value
-
-
-def _run_userdata_migrations(
-    userdata: UserData,
-    menu_config: MenuConfig,
-    userdata_path: str | None,
-) -> None:
-    """Migrate userdata in-place if the stored cursor is older than ``USERDATA_VERSION``.
-
-    No-op when already current. Cursor lives in the hash file.
-    """
-    from .hashing import read_stored_userdata_version, write_stored_userdata_version
-
-    stored_version = read_stored_userdata_version()
-    if stored_version >= USERDATA_VERSION:
-        return
-
-    migrate_userdata(userdata, menu_config, stored_version, USERDATA_VERSION)
-    save_userdata(userdata, userdata_path)
-    write_stored_userdata_version(USERDATA_VERSION)
 
 
 def _apply_action_overrides(menu: Menu, overrides: list[ActionOverride]) -> None:
