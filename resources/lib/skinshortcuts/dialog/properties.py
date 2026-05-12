@@ -129,7 +129,7 @@ def _parse_smart_playlist(filepath: str) -> tuple[str, str]:
 
 from ..loaders import evaluate_condition, load_widgets
 from ..loaders.base import apply_suffix_transform
-from ..localize import resolve_label
+from ..localize import LANGUAGE, resolve_label
 from ..models import (
     Background,
     BackgroundType,
@@ -274,8 +274,8 @@ class PropertiesMixin:
                 requires_name = f"{requires}{self.property_suffix}"
             if not self._check_requires(item, requires_name):
                 xbmcgui.Dialog().notification(
-                    "Not Available",
-                    f"Requires {requires_name} to be set first",
+                    LANGUAGE(32173),
+                    LANGUAGE(32174).format(requires_name=requires_name),
                 )
                 return True
 
@@ -322,7 +322,7 @@ class PropertiesMixin:
             return
         menu = self.manager.config.get_menu(self.menu_id)
         if menu and not menu.allow.widgets:
-            xbmcgui.Dialog().notification("Not Allowed", "Widgets not enabled for this menu")
+            xbmcgui.Dialog().notification(LANGUAGE(32175), LANGUAGE(32176))
             return
 
         prefix = prop_name
@@ -436,7 +436,7 @@ class PropertiesMixin:
             return
         menu = self.manager.config.get_menu(self.menu_id)
         if menu and not menu.allow.backgrounds:
-            xbmcgui.Dialog().notification("Not Allowed", "Backgrounds not enabled for this menu")
+            xbmcgui.Dialog().notification(LANGUAGE(32175), LANGUAGE(32177))
             return
 
         prefix = prop_name
@@ -587,17 +587,17 @@ class PropertiesMixin:
             base = _get_playlists_base_path()
             sources = [
                 PlaylistSource(
-                    label="Video Playlists",
+                    label=LANGUAGE(32178),
                     path=f"{base}video/",
                     icon="DefaultVideoPlaylists.png",
                 ),
                 PlaylistSource(
-                    label="Music Playlists",
+                    label=LANGUAGE(32179),
                     path=f"{base}music/",
                     icon="DefaultMusicPlaylists.png",
                 ),
                 PlaylistSource(
-                    label="Mixed Playlists",
+                    label=LANGUAGE(32180),
                     path=f"{base}mixed/",
                     icon="DefaultPlaylist.png",
                 ),
@@ -633,7 +633,7 @@ class PropertiesMixin:
                 listitem.setArt({"icon": source.icon})
             listitems.append(listitem)
 
-        title = f"Select {prefix}" if prefix else "Select Playlist"
+        title = f"{LANGUAGE(32170)} {prefix}" if prefix else LANGUAGE(32181)
         selected = xbmcgui.Dialog().select(title, listitems, useDetails=True)
         if selected == -1:
             return None
@@ -668,7 +668,7 @@ class PropertiesMixin:
                     break
 
         if not playlists:
-            xbmcgui.Dialog().notification("No Playlists", "No playlists found in this location")
+            xbmcgui.Dialog().notification(LANGUAGE(32182), LANGUAGE(32183))
             return None
 
         listitems = []
@@ -677,7 +677,7 @@ class PropertiesMixin:
             listitem.setArt({"icon": icon})
             listitems.append(listitem)
 
-        title = resolve_label(source.label) if source.label else "Select Playlist"
+        title = resolve_label(source.label) if source.label else LANGUAGE(32181)
         selected = xbmcgui.Dialog().select(title, listitems, useDetails=True, preselect=preselect)
 
         if selected == -1:
@@ -762,12 +762,12 @@ class PropertiesMixin:
                 visible_options.append(opt)
 
         if not visible_options:
-            xbmcgui.Dialog().notification("No Options", "No options available")
+            xbmcgui.Dialog().notification(LANGUAGE(32184), LANGUAGE(32185))
             return True
 
         listitems = []
         if button.show_none:
-            none_item = xbmcgui.ListItem("None")
+            none_item = xbmcgui.ListItem(LANGUAGE(32022))
             none_item.setArt({"icon": "DefaultAddonNone.png"})
             listitems.append(none_item)
 

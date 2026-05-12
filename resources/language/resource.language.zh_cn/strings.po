@@ -532,3 +532,259 @@ msgstr "修改该条目？"
 msgctxt "#32128"
 msgid "Are you sure you want to modify this item?"
 msgstr "是否确认修改该条目？"
+
+msgctxt "#32129"
+msgid "Episodes"
+msgstr "剧集集数"
+
+msgctxt "#32134"
+msgid "Songs"
+msgstr "歌曲"
+
+msgctxt "#32135"
+msgid "Albums"
+msgstr "专辑"
+
+msgctxt "#32136"
+msgid "Artists"
+msgstr "艺术家"
+
+msgctxt "#32139"
+msgid "Files"
+msgstr "文件"
+
+msgctxt "#32141"
+msgid "Choose Category"
+msgstr "选择类别"
+
+msgctxt "#32142"
+msgid "Select Widget"
+msgstr "选择小组件"
+
+msgctxt "#32143"
+msgid "Select Widget Type"
+msgstr "选择小组件类型"
+
+msgctxt "#32144"
+msgid "Select"
+msgstr "选择"
+
+msgctxt "#32145"
+msgid "No Items"
+msgstr "无项目"
+
+msgctxt "#32146"
+msgid "No items available"
+msgstr "没有可用项目"
+
+msgctxt "#32147"
+msgid "No items available in this group"
+msgstr "此组中没有可用项目"
+
+msgctxt "#32148"
+msgid "No Shortcuts"
+msgstr "无快捷方式"
+
+msgctxt "#32149"
+msgid "No shortcut groupings defined in skin"
+msgstr "皮肤中未定义快捷方式分组"
+
+msgctxt "#32150"
+msgid "Cannot Browse"
+msgstr "无法浏览"
+
+msgctxt "#32151"
+msgid "Unable to list directory contents"
+msgstr "无法列出目录内容"
+
+msgctxt "#32152"
+msgid "Browse"
+msgstr "浏览"
+
+msgctxt "#32153"
+msgid "No Backgrounds"
+msgstr "无背景"
+
+msgctxt "#32154"
+msgid "No backgrounds defined"
+msgstr "未定义背景"
+
+msgctxt "#32155"
+msgid "Select Background"
+msgstr "选择背景"
+
+msgctxt "#32156"
+msgid "No Widgets"
+msgstr "无小组件"
+
+msgctxt "#32157"
+msgid "No widgets defined in skin"
+msgstr "皮肤中未定义小组件"
+
+msgctxt "#32158"
+msgid "Library >"
+msgstr "资料库 >"
+
+msgctxt "#32159"
+msgid "Plugins >"
+msgstr "插件 >"
+
+msgctxt "#32160"
+msgid "Reset Library Views"
+msgstr "重置资料库视图"
+
+msgctxt "#32161"
+msgid "Reset Plugin Views"
+msgstr "重置插件视图"
+
+msgctxt "#32162"
+msgid "View Settings"
+msgstr "视图设置"
+
+msgctxt "#32163"
+msgid "Library"
+msgstr "资料库"
+
+msgctxt "#32164"
+msgid "Add Plugin Override >"
+msgstr "添加插件覆盖 >"
+
+msgctxt "#32165"
+msgid "Plugins"
+msgstr "插件"
+
+msgctxt "#32166"
+msgid "No Addons"
+msgstr "无插件"
+
+msgctxt "#32167"
+msgid "No video addons installed"
+msgstr "未安装视频插件"
+
+msgctxt "#32168"
+msgid "Select Plugin"
+msgstr "选择插件"
+
+msgctxt "#32169"
+msgid "Select Content Type"
+msgstr "选择内容类型"
+
+msgctxt "#32170"
+msgid "Select View"
+msgstr "选择视图"
+
+msgctxt "#32171"
+msgid "default"
+msgstr "默认"
+
+msgctxt "#32172"
+msgid "Confirm"
+msgstr "确认"
+
+msgctxt "#32173"
+msgid "Not Available"
+msgstr "不可用"
+
+msgctxt "#32174"
+msgid "Requires {requires_name} to be set first"
+msgstr "需要先设置 {requires_name}"
+
+msgctxt "#32175"
+msgid "Not Allowed"
+msgstr "不允许"
+
+msgctxt "#32176"
+msgid "Widgets not enabled for this menu"
+msgstr "此菜单未启用小组件"
+
+msgctxt "#32177"
+msgid "Backgrounds not enabled for this menu"
+msgstr "此菜单未启用背景"
+
+msgctxt "#32178"
+msgid "Video Playlists"
+msgstr "视频播放列表"
+
+msgctxt "#32179"
+msgid "Music Playlists"
+msgstr "音乐播放列表"
+
+msgctxt "#32180"
+msgid "Mixed Playlists"
+msgstr "混合播放列表"
+
+msgctxt "#32181"
+msgid "Select Playlist"
+msgstr "选择播放列表"
+
+msgctxt "#32182"
+msgid "No Playlists"
+msgstr "无播放列表"
+
+msgctxt "#32183"
+msgid "No playlists found in this location"
+msgstr "此位置未找到播放列表"
+
+msgctxt "#32184"
+msgid "No Options"
+msgstr "无选项"
+
+msgctxt "#32185"
+msgid "No options available"
+msgstr "没有可用选项"
+
+msgctxt "#32186"
+msgid "Cannot Delete"
+msgstr "无法删除"
+
+msgctxt "#32187"
+msgid "Delete Item"
+msgstr "删除项目"
+
+msgctxt "#32188"
+msgid "Enter action"
+msgstr "输入动作"
+
+msgctxt "#32189"
+msgid "Modify Action"
+msgstr "修改动作"
+
+msgctxt "#32190"
+msgid "Cannot Disable"
+msgstr "无法禁用"
+
+msgctxt "#32191"
+msgid "Disable Item"
+msgstr "禁用项目"
+
+msgctxt "#32192"
+msgid "No Deleted Items"
+msgstr "无已删除项目"
+
+msgctxt "#32193"
+msgid "No items to restore"
+msgstr "没有要恢复的项目"
+
+msgctxt "#32194"
+msgid "Restore Deleted Item"
+msgstr "恢复已删除项目"
+
+msgctxt "#32195"
+msgid "Reset Item"
+msgstr "重置项目"
+
+msgctxt "#32196"
+msgid "Edit Label"
+msgstr "编辑标签"
+
+msgctxt "#32197"
+msgid "Edit Action"
+msgstr "编辑动作"
+
+msgctxt "#32198"
+msgid "Change Icon"
+msgstr "更改图标"
+
+msgctxt "#32199"
+msgid "Edit Submenu"
+msgstr "编辑子菜单"

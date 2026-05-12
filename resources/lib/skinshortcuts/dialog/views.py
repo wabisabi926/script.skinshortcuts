@@ -12,7 +12,7 @@ try:
 except ImportError:
     IN_KODI = False
 
-from ..localize import resolve_label
+from ..localize import LANGUAGE, resolve_label
 from ..log import get_logger
 
 if TYPE_CHECKING:
@@ -104,8 +104,8 @@ def _browse_main_menu(config: ViewConfig, userdata: UserData) -> bool:
 
     while True:
         items = [
-            xbmcgui.ListItem("Library >"),
-            xbmcgui.ListItem("Plugins >"),
+            xbmcgui.ListItem(LANGUAGE(32158)),
+            xbmcgui.ListItem(LANGUAGE(32159)),
         ]
         items[0].setArt({"icon": "DefaultFolder.png"})
         items[1].setArt({"icon": "DefaultAddonProgram.png"})
@@ -113,42 +113,42 @@ def _browse_main_menu(config: ViewConfig, userdata: UserData) -> bool:
         plugin_overrides = _get_all_addon_overrides(userdata)
         if plugin_overrides:
             for plugin_id in sorted(plugin_overrides):
-                item = xbmcgui.ListItem(f"{plugin_id} (reset) >")
+                item = xbmcgui.ListItem(f"{plugin_id} ({LANGUAGE(32160).replace(' Library Views', '')}) >")
                 item.setArt({"icon": "DefaultAddonVideo.png"})
                 items.append(item)
 
-        reset_library = xbmcgui.ListItem("Reset Library Views")
+        reset_library = xbmcgui.ListItem(LANGUAGE(32160))
         reset_library.setArt({"icon": "DefaultIconWarning.png"})
         items.append(reset_library)
 
-        reset_plugins = xbmcgui.ListItem("Reset Plugin Views")
+        reset_plugins = xbmcgui.ListItem(LANGUAGE(32161))
         reset_plugins.setArt({"icon": "DefaultIconWarning.png"})
         items.append(reset_plugins)
 
         selected = xbmcgui.Dialog().select(
-            "View Settings", items, useDetails=True
+            LANGUAGE(32162), items, useDetails=True
         )
 
         if selected == -1:
             break
 
         if selected == 0:
-            if _browse_source_menu(config, userdata, "library", "Library"):
+            if _browse_source_menu(config, userdata, "library", LANGUAGE(32163)):
                 changed = True
         elif selected == 1:
             if _browse_plugins_menu(config, userdata):
                 changed = True
         elif selected < 2 + len(plugin_overrides):
             plugin_id = sorted(plugin_overrides)[selected - 2]
-            if _confirm_reset(f"Reset views for {plugin_id}?"):
+            if _confirm_reset(f"{LANGUAGE(32160).replace(' Library Views', '')} views for {plugin_id}?"):
                 _clear_plugin_views(userdata, plugin_id)
                 changed = True
         elif selected == 2 + len(plugin_overrides):
-            if _confirm_reset("Reset all library view selections?"):
+            if _confirm_reset(f"{LANGUAGE(32160)}?"):
                 userdata.views.pop("library", None)
                 changed = True
         else:
-            if _confirm_reset("Reset all plugin view selections?"):
+            if _confirm_reset(f"{LANGUAGE(32161)}?"):
                 _clear_all_addon_views(userdata)
                 changed = True
 
@@ -221,11 +221,11 @@ def _browse_plugins_menu(config: ViewConfig, userdata: UserData) -> bool:
             item.setArt({"icon": content.icon or "DefaultFolder.png"})
             items.append(item)
 
-        add_override = xbmcgui.ListItem("Add Plugin Override >")
+        add_override = xbmcgui.ListItem(LANGUAGE(32164))
         add_override.setArt({"icon": "DefaultAddonProgram.png"})
         items.append(add_override)
 
-        selected = xbmcgui.Dialog().select("Plugins", items, useDetails=True)
+        selected = xbmcgui.Dialog().select(LANGUAGE(32165), items, useDetails=True)
 
         if selected == -1:
             break
@@ -245,7 +245,7 @@ def _add_plugin_override(config: ViewConfig, userdata: UserData) -> bool:
     """Add a plugin override by browsing installed addons."""
     addons = _get_video_addons()
     if not addons:
-        xbmcgui.Dialog().notification("No Addons", "No video addons installed")
+        xbmcgui.Dialog().notification(LANGUAGE(32166), LANGUAGE(32167))
         return False
 
     items = []
@@ -255,7 +255,7 @@ def _add_plugin_override(config: ViewConfig, userdata: UserData) -> bool:
         item.setProperty("addon_id", addon_id)
         items.append(item)
 
-    selected = xbmcgui.Dialog().select("Select Plugin", items, useDetails=True)
+    selected = xbmcgui.Dialog().select(LANGUAGE(32168), items, useDetails=True)
     if selected == -1:
         return False
 
@@ -268,7 +268,7 @@ def _add_plugin_override(config: ViewConfig, userdata: UserData) -> bool:
         content_items.append(item)
 
     content_selected = xbmcgui.Dialog().select(
-        "Select Content Type", content_items, useDetails=True
+        LANGUAGE(32169), content_items, useDetails=True
     )
     if content_selected == -1:
         return False
@@ -313,12 +313,12 @@ def _pick_view_for_content(
 
         item = xbmcgui.ListItem(label)
         if view.id == default_view:
-            item.setLabel2("default")
+            item.setLabel2(LANGUAGE(32171))
         icon = view.icon or "DefaultFolder.png"
         item.setArt({"icon": icon, "thumb": icon})
         items.append(item)
 
-    title = f"{resolve_label(content.label)} - Select View"
+    title = f"{resolve_label(content.label)} - {LANGUAGE(32170)}"
     selected = xbmcgui.Dialog().select(title, items, useDetails=True, preselect=preselect)
 
     if selected == -1:
@@ -385,4 +385,4 @@ def _confirm_reset(message: str) -> bool:
     """Show confirmation dialog for reset action."""
     if not IN_KODI:
         return False
-    return xbmcgui.Dialog().yesno("Confirm", message)
+    return xbmcgui.Dialog().yesno(LANGUAGE(32172), message)

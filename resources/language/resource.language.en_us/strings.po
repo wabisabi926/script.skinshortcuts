@@ -549,6 +549,262 @@ msgstr ""
 #~ msgid "Do you want to play this playlist, or display it?"
 #~ msgstr "Do you want to play this playlist, or display it?"
 
+msgctxt "#32129"
+msgid "Episodes"
+msgstr "Episodes"
+
+msgctxt "#32134"
+msgid "Songs"
+msgstr "Songs"
+
+msgctxt "#32135"
+msgid "Albums"
+msgstr "Albums"
+
+msgctxt "#32136"
+msgid "Artists"
+msgstr "Artists"
+
+msgctxt "#32139"
+msgid "Files"
+msgstr "Files"
+
+msgctxt "#32141"
+msgid "Choose Category"
+msgstr "Choose Category"
+
+msgctxt "#32142"
+msgid "Select Widget"
+msgstr "Select Widget"
+
+msgctxt "#32143"
+msgid "Select Widget Type"
+msgstr "Select Widget Type"
+
+msgctxt "#32144"
+msgid "Select"
+msgstr "Select"
+
+msgctxt "#32145"
+msgid "No Items"
+msgstr "No Items"
+
+msgctxt "#32146"
+msgid "No items available"
+msgstr "No items available"
+
+msgctxt "#32147"
+msgid "No items available in this group"
+msgstr "No items available in this group"
+
+msgctxt "#32148"
+msgid "No Shortcuts"
+msgstr "No Shortcuts"
+
+msgctxt "#32149"
+msgid "No shortcut groupings defined in skin"
+msgstr "No shortcut groupings defined in skin"
+
+msgctxt "#32150"
+msgid "Cannot Browse"
+msgstr "Cannot Browse"
+
+msgctxt "#32151"
+msgid "Unable to list directory contents"
+msgstr "Unable to list directory contents"
+
+msgctxt "#32152"
+msgid "Browse"
+msgstr "Browse"
+
+msgctxt "#32153"
+msgid "No Backgrounds"
+msgstr "No Backgrounds"
+
+msgctxt "#32154"
+msgid "No backgrounds defined"
+msgstr "No backgrounds defined"
+
+msgctxt "#32155"
+msgid "Select Background"
+msgstr "Select Background"
+
+msgctxt "#32156"
+msgid "No Widgets"
+msgstr "No Widgets"
+
+msgctxt "#32157"
+msgid "No widgets defined in skin"
+msgstr "No widgets defined in skin"
+
+msgctxt "#32158"
+msgid "Library >"
+msgstr "Library >"
+
+msgctxt "#32159"
+msgid "Plugins >"
+msgstr "Plugins >"
+
+msgctxt "#32160"
+msgid "Reset Library Views"
+msgstr "Reset Library Views"
+
+msgctxt "#32161"
+msgid "Reset Plugin Views"
+msgstr "Reset Plugin Views"
+
+msgctxt "#32162"
+msgid "View Settings"
+msgstr "View Settings"
+
+msgctxt "#32163"
+msgid "Library"
+msgstr "Library"
+
+msgctxt "#32164"
+msgid "Add Plugin Override >"
+msgstr "Add Plugin Override >"
+
+msgctxt "#32165"
+msgid "Plugins"
+msgstr "Plugins"
+
+msgctxt "#32166"
+msgid "No Addons"
+msgstr "No Addons"
+
+msgctxt "#32167"
+msgid "No video addons installed"
+msgstr "No video addons installed"
+
+msgctxt "#32168"
+msgid "Select Plugin"
+msgstr "Select Plugin"
+
+msgctxt "#32169"
+msgid "Select Content Type"
+msgstr "Select Content Type"
+
+msgctxt "#32170"
+msgid "Select View"
+msgstr "Select View"
+
+msgctxt "#32171"
+msgid "default"
+msgstr "default"
+
+msgctxt "#32172"
+msgid "Confirm"
+msgstr "Confirm"
+
+msgctxt "#32173"
+msgid "Not Available"
+msgstr "Not Available"
+
+msgctxt "#32174"
+msgid "Requires {requires_name} to be set first"
+msgstr "Requires {requires_name} to be set first"
+
+msgctxt "#32175"
+msgid "Not Allowed"
+msgstr "Not Allowed"
+
+msgctxt "#32176"
+msgid "Widgets not enabled for this menu"
+msgstr "Widgets not enabled for this menu"
+
+msgctxt "#32177"
+msgid "Backgrounds not enabled for this menu"
+msgstr "Backgrounds not enabled for this menu"
+
+msgctxt "#32178"
+msgid "Video Playlists"
+msgstr "Video Playlists"
+
+msgctxt "#32179"
+msgid "Music Playlists"
+msgstr "Music Playlists"
+
+msgctxt "#32180"
+msgid "Mixed Playlists"
+msgstr "Mixed Playlists"
+
+msgctxt "#32181"
+msgid "Select Playlist"
+msgstr "Select Playlist"
+
+msgctxt "#32182"
+msgid "No Playlists"
+msgstr "No Playlists"
+
+msgctxt "#32183"
+msgid "No playlists found in this location"
+msgstr "No playlists found in this location"
+
+msgctxt "#32184"
+msgid "No Options"
+msgstr "No Options"
+
+msgctxt "#32185"
+msgid "No options available"
+msgstr "No options available"
+
+msgctxt "#32186"
+msgid "Cannot Delete"
+msgstr "Cannot Delete"
+
+msgctxt "#32187"
+msgid "Delete Item"
+msgstr "Delete Item"
+
+msgctxt "#32188"
+msgid "Enter action"
+msgstr "Enter action"
+
+msgctxt "#32189"
+msgid "Modify Action"
+msgstr "Modify Action"
+
+msgctxt "#32190"
+msgid "Cannot Disable"
+msgstr "Cannot Disable"
+
+msgctxt "#32191"
+msgid "Disable Item"
+msgstr "Disable Item"
+
+msgctxt "#32192"
+msgid "No Deleted Items"
+msgstr "No Deleted Items"
+
+msgctxt "#32193"
+msgid "No items to restore"
+msgstr "No items to restore"
+
+msgctxt "#32194"
+msgid "Restore Deleted Item"
+msgstr "Restore Deleted Item"
+
+msgctxt "#32195"
+msgid "Reset Item"
+msgstr "Reset Item"
+
+msgctxt "#32196"
+msgid "Edit Label"
+msgstr "Edit Label"
+
+msgctxt "#32197"
+msgid "Edit Action"
+msgstr "Edit Action"
+
+msgctxt "#32198"
+msgid "Change Icon"
+msgstr "Change Icon"
+
+msgctxt "#32199"
+msgid "Edit Submenu"
+msgstr "Edit Submenu"
+
 #~ msgctxt "#32064"
 #~ msgid "No Shortcuts"
 #~ msgstr "No Shortcuts"

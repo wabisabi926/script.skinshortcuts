@@ -13,7 +13,7 @@ try:
 except ImportError:
     IN_KODI = False
 
-from ..localize import resolve_label
+from ..localize import LANGUAGE, resolve_label
 from ..models import Action, BrowseSource, IconSource, MenuItem
 
 if TYPE_CHECKING:
@@ -164,13 +164,13 @@ class ItemsMixin:
             return
 
         if item.required:
-            xbmcgui.Dialog().ok("Cannot Delete", f"'{item.label}' is required.")
+            xbmcgui.Dialog().ok(LANGUAGE(32186), f"'{item.label}' is required.")
             return
 
         if item.protection and item.protection.protects_delete():
-            heading = resolve_label(item.protection.heading) or "Delete Item"
+            heading = resolve_label(item.protection.heading) or LANGUAGE(32187)
             label = resolve_label(item.label)
-            message = resolve_label(item.protection.message) or f"Delete '{label}'?"
+            message = resolve_label(item.protection.message) or f"{LANGUAGE(32001)} '{label}'?"
             if not xbmcgui.Dialog().yesno(heading, message):
                 return
 
@@ -203,7 +203,7 @@ class ItemsMixin:
         if not item:
             return
 
-        from ..localize import resolve_label
+        from ..localize import LANGUAGE, resolve_label
 
         current_label = resolve_label(item.label)
         keyboard = xbmc.Keyboard(current_label, xbmc.getLocalizedString(528))
@@ -250,13 +250,13 @@ class ItemsMixin:
             return
 
         if item.protection and item.protection.protects_action():
-            heading = resolve_label(item.protection.heading) or "Modify Action"
+            heading = resolve_label(item.protection.heading) or LANGUAGE(32189)
             label = resolve_label(item.label)
-            message = resolve_label(item.protection.message) or f"Modify '{label}'?"
+            message = resolve_label(item.protection.message) or f"{LANGUAGE(32189).replace('Action', '').strip()} '{label}'?"
             if not xbmcgui.Dialog().yesno(heading, message):
                 return
 
-        keyboard = xbmc.Keyboard(item.action or "", "Enter action")
+        keyboard = xbmc.Keyboard(item.action or "", LANGUAGE(32188))
         keyboard.doModal()
         if keyboard.isConfirmed():
             action = keyboard.getText()
@@ -274,13 +274,13 @@ class ItemsMixin:
             return
 
         if item.required and not item.disabled:
-            xbmcgui.Dialog().ok("Cannot Disable", f"'{item.label}' is required.")
+            xbmcgui.Dialog().ok(LANGUAGE(32190), f"'{item.label}' is required.")
             return
 
         if not item.disabled and item.protection and item.protection.protects_disable():
-            heading = resolve_label(item.protection.heading) or "Disable Item"
+            heading = resolve_label(item.protection.heading) or LANGUAGE(32191)
             label = resolve_label(item.label)
-            message = resolve_label(item.protection.message) or f"Disable '{label}'?"
+            message = resolve_label(item.protection.message) or f"{LANGUAGE(32191).replace('Item', '').strip()} '{label}'?"
             if not xbmcgui.Dialog().yesno(heading, message):
                 return
 
@@ -295,11 +295,11 @@ class ItemsMixin:
 
         removed = self.manager.get_removed_items(self.menu_id)
         if not removed:
-            xbmcgui.Dialog().notification("No Deleted Items", "No items to restore")
+            xbmcgui.Dialog().notification(LANGUAGE(32192), LANGUAGE(32193))
             return
 
         labels = [resolve_label(item.label) for item in removed]
-        selected = xbmcgui.Dialog().select("Restore Deleted Item", labels)
+        selected = xbmcgui.Dialog().select(LANGUAGE(32194), labels)
 
         if selected < 0:
             return
@@ -327,7 +327,7 @@ class ItemsMixin:
             return
 
         display_label = resolve_label(item.label)
-        if not xbmcgui.Dialog().yesno("Reset Item", f"Reset '{display_label}' to defaults?"):
+        if not xbmcgui.Dialog().yesno(LANGUAGE(32195), f"{LANGUAGE(32195).replace(' Item', '')} '{display_label}' to defaults?"):
             return
 
         if not self.manager.reset_item(self.menu_id, item.name):
@@ -418,11 +418,11 @@ class ItemsMixin:
             return
 
         options = [
-            ("Edit Label", self._set_label),
-            ("Edit Action", self._set_action),
-            ("Change Icon", self._set_icon),
-            ("Edit Submenu", self._edit_submenu),
-            ("Delete", self._delete_item),
+            (LANGUAGE(32196), self._set_label),
+            (LANGUAGE(32197), self._set_action),
+            (LANGUAGE(32198), self._set_icon),
+            (LANGUAGE(32199), self._edit_submenu),
+            (LANGUAGE(32001), self._delete_item),
         ]
 
         labels = [opt[0] for opt in options]

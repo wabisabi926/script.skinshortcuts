@@ -164,8 +164,8 @@ class PickersMixin:
 
         if not groups:
             xbmcgui.Dialog().notification(
-                "No Shortcuts",
-                "No shortcut groupings defined in skin",
+                LANGUAGE(32148),
+                LANGUAGE(32149),
             )
             return
 
@@ -250,7 +250,7 @@ class PickersMixin:
         result = self._pick_from_hierarchy(
             groups,
             item_props,
-            title="Choose Category",
+            title=LANGUAGE(32141),
             leaf_types=(Shortcut,),
             group_types=(ShortcutGroup,),
             default_leaf_icon="DefaultShortcut.png",
@@ -290,7 +290,7 @@ class PickersMixin:
         result = self._pick_from_hierarchy(
             items,
             item_props,
-            title="Select Widget",
+            title=LANGUAGE(32142),
             leaf_types=(Widget,),
             group_types=(WidgetGroup,),
             default_leaf_icon="DefaultAddonNone.png",
@@ -324,7 +324,7 @@ class PickersMixin:
         preselect = -1
 
         listitems = []
-        none_item = xbmcgui.ListItem("None")
+        none_item = xbmcgui.ListItem(LANGUAGE(32022))
         none_item.setArt({"icon": "DefaultAddonNone.png"})
         listitems.append(none_item)
 
@@ -337,7 +337,7 @@ class PickersMixin:
                 preselect = i + 1  # +1 for "None" option
 
         selected = xbmcgui.Dialog().select(
-            "Select Widget", listitems, useDetails=True, preselect=preselect
+            LANGUAGE(32142), listitems, useDetails=True, preselect=preselect
         )
 
         if selected == -1:
@@ -413,23 +413,23 @@ class PickersMixin:
         """
         if addon_type == "video":
             types = [
-                ("movies", "Movies", "DefaultMovies.png"),
-                ("tvshows", "TV Shows", "DefaultTVShows.png"),
-                ("episodes", "Episodes", "DefaultTVShows.png"),
-                ("musicvideos", "Music Videos", "DefaultMusicVideos.png"),
-                ("videos", "Videos", "DefaultVideo.png"),
+                ("movies", LANGUAGE(32013), "DefaultMovies.png"),
+                ("tvshows", LANGUAGE(32016), "DefaultTVShows.png"),
+                ("episodes", LANGUAGE(32131), "DefaultTVShows.png"),
+                ("musicvideos", LANGUAGE(32017), "DefaultMusicVideos.png"),
+                ("videos", LANGUAGE(32014), "DefaultVideo.png"),
             ]
         elif addon_type == "audio":
             types = [
-                ("songs", "Songs", "DefaultMusicSongs.png"),
-                ("albums", "Albums", "DefaultMusicAlbums.png"),
-                ("artists", "Artists", "DefaultMusicArtists.png"),
-                ("music", "Music", "DefaultAudio.png"),
+                ("songs", LANGUAGE(32134), "DefaultMusicSongs.png"),
+                ("albums", LANGUAGE(32135), "DefaultMusicAlbums.png"),
+                ("artists", LANGUAGE(32136), "DefaultMusicArtists.png"),
+                ("music", LANGUAGE(32019), "DefaultAudio.png"),
             ]
         else:
             types = [
-                ("programs", "Programs", "DefaultAddonProgram.png"),
-                ("files", "Files", "DefaultFile.png"),
+                ("programs", LANGUAGE(32020), "DefaultAddonProgram.png"),
+                ("files", LANGUAGE(32139), "DefaultFile.png"),
             ]
 
         listitems = []
@@ -438,7 +438,7 @@ class PickersMixin:
             listitem.setArt({"icon": icon})
             listitems.append(listitem)
 
-        selected = xbmcgui.Dialog().select("Select Widget Type", listitems, useDetails=True)
+        selected = xbmcgui.Dialog().select(LANGUAGE(32143), listitems, useDetails=True)
 
         if selected == -1:
             return None
@@ -538,7 +538,7 @@ class PickersMixin:
         while True:
             listitems = []
             if show_none:
-                none_item = xbmcgui.ListItem("None")
+                none_item = xbmcgui.ListItem(LANGUAGE(32022))
                 none_item.setArt({"icon": "DefaultAddonNone.png"})
                 listitems.append(none_item)
 
@@ -571,7 +571,7 @@ class PickersMixin:
         items: list,
         item_props: dict[str, str],
         *,
-        title: str = "Select",
+        title: str = LANGUAGE(32144),
         leaf_types: tuple = (Shortcut,),
         group_types: tuple = (ShortcutGroup,),
         default_leaf_icon: str = "DefaultShortcut.png",
@@ -611,7 +611,7 @@ class PickersMixin:
         )
 
         if not visible_items:
-            xbmcgui.Dialog().notification("No Items", "No items available")
+            xbmcgui.Dialog().notification(LANGUAGE(32145), LANGUAGE(32146))
             return None
 
         preselect = -1
@@ -625,7 +625,7 @@ class PickersMixin:
         while True:
             listitems = []
             if show_none:
-                none_item = xbmcgui.ListItem("None")
+                none_item = xbmcgui.ListItem(LANGUAGE(32022))
                 none_item.setArt({"icon": "DefaultAddonNone.png"})
                 listitems.append(none_item)
 
@@ -745,7 +745,7 @@ class PickersMixin:
         )
 
         if not visible_items:
-            xbmcgui.Dialog().notification("No Items", "No items available in this group")
+            xbmcgui.Dialog().notification(LANGUAGE(32145), LANGUAGE(32147))
             return None
 
         if (
@@ -960,11 +960,11 @@ class PickersMixin:
             items = browse_provider.list_directory(current_path, include_art=detail_view)
             if items is None:
                 xbmcgui.Dialog().notification(
-                    "Cannot Browse", "Unable to list directory contents"
+                    LANGUAGE(32150), LANGUAGE(32151)
                 )
                 return None
 
-            dialog_title = current_label or "Browse"
+            dialog_title = current_label or LANGUAGE(32152)
 
             if detail_view:
                 listitems = []
@@ -1093,13 +1093,13 @@ class PickersMixin:
 
         groupings = self.manager.config.background_groupings
         if not groupings:
-            xbmcgui.Dialog().notification("No Backgrounds", "No backgrounds defined")
+            xbmcgui.Dialog().notification(LANGUAGE(32153), LANGUAGE(32154))
             return None
 
         return self._pick_from_hierarchy(
             groupings,
             item_props,
-            title="Select Background",
+            title=LANGUAGE(32155),
             leaf_types=(Background,),
             group_types=(BackgroundGroup,),
             default_leaf_icon="DefaultPicture.png",
