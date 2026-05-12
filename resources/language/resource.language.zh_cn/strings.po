@@ -83,7 +83,7 @@ msgstr "电影"
 
 msgctxt "#32016"
 msgid "TV Shows"
-msgstr "剧集"
+msgstr "电视剧"
 
 msgctxt "#32017"
 msgid "Live TV"
