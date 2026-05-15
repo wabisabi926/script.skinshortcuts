@@ -7,7 +7,6 @@ browsable (directory) vs selectable (file) items.
 from __future__ import annotations
 
 import json
-import urllib.parse
 from dataclasses import dataclass
 
 import xbmc
@@ -30,6 +29,13 @@ class BrowseItem:
 
 class BrowseProvider:
     """Lists directory contents via JSON-RPC."""
+
+    def __init__(self, icon_overrides: dict[str, str] | None = None) -> None:
+        self._icon_overrides = icon_overrides or {}
+
+    def set_icon_overrides(self, overrides: dict[str, str]) -> None:
+        """Refresh the override map; setter exists for the module-level singleton."""
+        self._icon_overrides = overrides or {}
 
     def list_directory(
         self, path: str, include_art: bool = False
@@ -79,16 +85,17 @@ class BrowseProvider:
             icon = ""
             if include_art:
                 art = file_info.get("art", {})
-                # Prefer per-item imagery (poster/thumb) over the category default
-                # that Kodi puts in art.icon (e.g., DefaultVideo.png for movies).
-                icon = self._normalize_image(
+                # Prefer per-item imagery. Skip art.icon - it's always the
+                # generic Kodi default; our fallback provides a type-aware one.
+                icon = (
                     art.get("poster", "")
                     or art.get("thumb", "")
                     or file_info.get("thumbnail", "")
-                    or art.get("icon", "")
                 )
             if not icon:
                 icon = self._get_icon_for_item(file_info, filetype)
+                if self._icon_overrides:
+                    icon = self._icon_overrides.get(icon, icon)
 
             items.append(
                 BrowseItem(
@@ -101,20 +108,6 @@ class BrowseProvider:
             )
 
         return items
-
-    @staticmethod
-    def _normalize_image(path: str) -> str:
-        """Unwrap Kodi's image:// form to a path setArt can render.
-
-        Built-in textures (DefaultX.png) and external URLs both come wrapped;
-        the inner content is URL-encoded. setArt expects the decoded form.
-        """
-        if not path.startswith("image://"):
-            return path
-        inner = path[len("image://") :]
-        if inner.endswith("/"):
-            inner = inner[:-1]
-        return urllib.parse.unquote(inner)
 
     def is_browsable(self, path: str) -> bool:
         """Check if a path can be browsed into.
@@ -141,8 +134,24 @@ class BrowseProvider:
 
         return path.endswith("/")
 
+    _TYPE_DEFAULTS: dict[str, str] = {
+        "movie": "DefaultMovies.png",
+        "tvshow": "DefaultTVShows.png",
+        "season": "DefaultTVShows.png",
+        "episode": "DefaultTVShows.png",
+        "musicvideo": "DefaultMusicVideos.png",
+        "album": "DefaultAlbumCover.png",
+        "artist": "DefaultArtist.png",
+        "song": "DefaultAudio.png",
+        "genre": "DefaultGenre.png",
+    }
+
     def _get_icon_for_item(self, file_info: dict, filetype: str) -> str:
         """Determine appropriate icon for an item."""
+        item_type = file_info.get("type", "")
+        if item_type in self._TYPE_DEFAULTS:
+            return self._TYPE_DEFAULTS[item_type]
+
         if filetype == "directory":
             return "DefaultFolder.png"
 

@@ -184,16 +184,50 @@ Top-level `<widgets>` accepts `<widget>`, `<group>`, and `<content>`. Use `folde
 | Attribute | Required | Description |
 |-----------|----------|-------------|
 | `name` | Yes | Unique identifier |
-| `label` | Yes | Display label |
+| `label` | Yes (unless `flat="true"`) | Display label for the folder header |
 | `icon` | No | Icon for picker display (default: `DefaultFolder.png`) |
 | `condition` | No | Property condition (evaluated against item properties) |
 | `visible` | No | Kodi visibility condition (evaluated at runtime) |
+| `flat` | No | When `true`, children appear inline at parent level instead of inside a folder |
 
 Groups can contain:
 
 * `<widget>` - Widget definitions
 * `<group>` - Nested groups
 * `<content>` - Dynamic content
+
+### Flat Groups
+
+A group with `flat="true"` does not render as a folder. Its children appear at the parent level when the group's `condition` and `visible` both pass. This lets a single picker invocation expose different widget sets without per-widget visibility conditions.
+
+```xml
+<widgets>
+  <group name="spotlight" flat="true" visible="String.IsEqual(Window(Home).Property(widgetContext),spotlight)">
+    <widget name="recent-movies" label="Recent Movies" type="movies">
+      <path>videodb://recentlyaddedmovies/</path>
+    </widget>
+    <widget name="watchlist" label="Watchlist" type="movies">
+      <path>plugin://plugin.video.themoviedb.helper/?info=watchlist</path>
+    </widget>
+  </group>
+
+  <group name="fallback" flat="true" visible="String.IsEqual(Window(Home).Property(widgetContext),fallback)">
+    <widget name="genres" label="Genres" type="moviegenres">
+      <path>videodb://movies/genres/</path>
+    </widget>
+  </group>
+</widgets>
+```
+
+Pair flat groups with a window property the picker is invoked with. The condition references that property; only the matching group's widgets appear at the top level. Pass the property using paired `prop=NAME,value=VALUE` args in the script call (see [Window Property Pass-Through](management-dialog.md#window-property-pass-through)):
+
+```xml
+<onclick>RunScript(script.skinshortcuts,type=skinstring,prop=widgetContext,value=spotlight,skinPath=home.widget.path,skinLabel=home.widget.label,skinType=home.widget.type,skinTarget=home.widget.target)</onclick>
+```
+
+The script sets `widgetContext=spotlight` on Home for the picker's lifetime and clears it on close, so the matching flat group's widgets show and the property doesn't leak.
+
+`label` and `icon` are unused when `flat="true"` and may be omitted.
 
 ---
 

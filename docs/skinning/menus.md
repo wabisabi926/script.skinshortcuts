@@ -466,10 +466,32 @@ For finer control, use `visible` on individual `<group>` elements to show/hide g
 | Attribute | Required | Description |
 |-----------|----------|-------------|
 | `name` | Yes | Unique identifier |
-| `label` | Yes | Display label |
+| `label` | Yes (unless `flat="true"`) | Display label for the folder header |
 | `icon` | No | Group icon |
 | `condition` | No | Property condition (evaluated against item properties) |
 | `visible` | No | Kodi visibility condition (evaluated at runtime) |
+| `flat` | No | When `true`, children appear inline at parent level instead of inside a folder |
+
+### Flat Groups
+
+A group with `flat="true"` has no folder header. Its children render at the parent level when the group's `condition` and `visible` both pass. Useful when one set of shortcuts should appear in some contexts and another set in others, without putting visibility conditions on every shortcut.
+
+```xml
+<groupings>
+  <group name="power-shortcuts" flat="true" visible="String.IsEqual(Window.Property(menuname),powermenu)">
+    <shortcut name="shutdown" label="$LOCALIZE[13005]" icon="DefaultShortcut.png">
+      <action>ShutDown()</action>
+    </shortcut>
+    <shortcut name="reboot" label="$LOCALIZE[13013]" icon="DefaultShortcut.png">
+      <action>Reboot</action>
+    </shortcut>
+  </group>
+</groupings>
+```
+
+`label` and `icon` are unused when `flat="true"` and may be omitted.
+
+For pickers invoked directly via `RunScript`, paired `prop=NAME,value=VALUE` arguments set a window property for the picker's lifetime and clear it on close - useful for driving flat group visibility from a specific button context. See [Window Property Pass-Through](management-dialog.md#window-property-pass-through).
 
 ### `<shortcut>` Attributes
 
@@ -745,6 +767,47 @@ Replace deprecated or changed actions:
 | `replace` | Action string to find |
 
 The element text is the replacement action.
+
+---
+
+## Icon Overrides
+
+Substitute Kodi's generic `Default*.png` icons (e.g., `DefaultFolder.png`, `DefaultMovies.png`) with skin-specific replacements. Useful when your skin has a curated icon set under `extras/icons/` and you want script-generated entries to use them instead of Kodi's defaults.
+
+```xml
+<overrides>
+  <icons>
+    <source>special://skin/extras/icons/</source>
+    <icon replace="DefaultFolder.png">files.png</icon>
+  </icons>
+</overrides>
+```
+
+Resolution:
+
+1. The active `<source>` is the first one whose `visible` condition passes (or the first source without a `visible` attribute). Sources must be declared explicitly in the override block - the root `<icons>` picker source is not reused automatically, since a skin's icon picker folder is usually a flat collection of icons rather than a substitution map.
+2. **Convention scan**: any `Default*.png` file found in the active source is automatically registered as an override pointing at itself. Drop replacement icons into your icons folder with matching filenames to skip listing them individually.
+3. **Explicit overrides**: `<icon replace="X">Y</icon>` declarations win over convention. The replacement path Y is resolved relative to the active source unless it's absolute (starts with `special://` or `/`). With no `<source>` declared, relative Y values are dropped and logged.
+
+### Conditional Sources
+
+Use multiple `<source>` children to switch override sets based on skin state:
+
+```xml
+<overrides>
+  <icons>
+    <source visible="Skin.HasSetting(theme.dark)">special://skin/extras/icons-dark/</source>
+    <source>special://skin/extras/icons-light/</source>
+    <icon replace="DefaultFolder.png">files.png</icon>
+  </icons>
+</overrides>
+```
+
+The condition is evaluated at config load. If the user changes the skin setting at runtime, run a rebuild to pick up the new overrides.
+
+### Scope
+
+Overrides apply only to icons the script generates as a default (when no `icon=` attribute is set on a shortcut, when content sources stamp generic icons, when the browse picker falls back to a type-aware default). Icons the skinner declares explicitly via `icon="..."` attributes stay literal - a skinner who writes `icon="DefaultFolder.png"` is treated as deliberately choosing that icon.
 
 ---
 

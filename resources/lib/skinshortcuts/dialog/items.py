@@ -128,7 +128,7 @@ class ItemsMixin:
         if widget.source:
             properties["widgetSource"] = widget.source
         if widget.label:
-            properties["widgetLabel"] = widget.label
+            properties["widgetLabel"] = resolve_label(widget.label)
 
         return MenuItem(
             name=widget.name,
@@ -164,7 +164,7 @@ class ItemsMixin:
             return
 
         if item.required:
-            xbmcgui.Dialog().ok("Cannot Delete", f"'{item.label}' is required.")
+            xbmcgui.Dialog().ok("Cannot Delete", f"'{resolve_label(item.label)}' is required.")
             return
 
         if item.protection and item.protection.protects_delete():
@@ -210,8 +210,15 @@ class ItemsMixin:
         keyboard.doModal()
         if keyboard.isConfirmed():
             new_label = keyboard.getText()
+            if new_label == current_label:
+                return
             self.manager.set_label(self.menu_id, item.name, new_label)
             item.label = new_label
+            # widgetLabel is seeded from label for widget submenus; sync on edit so list 211 and widget output match
+            menu = self.manager.config.get_menu(self.menu_id)
+            if menu and menu.menu_type == "widgets":
+                self.manager.set_custom_property(self.menu_id, item.name, "widgetLabel", new_label)
+                item.properties["widgetLabel"] = new_label
             self._refresh_selected_item()
 
     def _set_icon(self) -> None:
@@ -224,12 +231,19 @@ class ItemsMixin:
             return
 
         self._log(f"Opening icon picker, current icon: {item.icon}")
+        # <icons>path</icons> simple mode is parsed as one unlabeled source; treat as direct browse start
+        sources = self.icon_sources
+        default_path = ""
+        if len(sources) == 1 and not sources[0].label:
+            default_path = sources[0].path
+            sources = []
         icon = self._browse_with_sources(
-            sources=self.icon_sources,
+            sources=sources,
             title=xbmc.getLocalizedString(1030),  # "Choose icon"
             browse_type=2,  # Image file
             mask=".png|.jpg|.gif",
             item_properties=item.properties,
+            default_path=default_path,
         )
         self._log(f"Icon picker returned: {icon!r}")
         if icon and isinstance(icon, str):
@@ -274,7 +288,7 @@ class ItemsMixin:
             return
 
         if item.required and not item.disabled:
-            xbmcgui.Dialog().ok("Cannot Disable", f"'{item.label}' is required.")
+            xbmcgui.Dialog().ok("Cannot Disable", f"'{resolve_label(item.label)}' is required.")
             return
 
         if not item.disabled and item.protection and item.protection.protects_disable():
@@ -344,6 +358,7 @@ class ItemsMixin:
         browse_type: int,
         mask: str = "",
         item_properties: dict[str, str] | None = None,
+        default_path: str = "",
     ) -> str | None:
         """Browse for a file using configured sources.
 
@@ -353,6 +368,7 @@ class ItemsMixin:
             browse_type: Kodi browse type (0=folder, 2=image file)
             mask: File mask for filtering (e.g., ".png|.jpg")
             item_properties: Current item properties for condition evaluation
+            default_path: Starting path when sources is empty (direct browse mode)
 
         Returns:
             Selected path, or None if cancelled
@@ -371,18 +387,13 @@ class ItemsMixin:
             visible_sources.append(source)
 
         if not visible_sources:
+            if default_path:
+                result = xbmcgui.Dialog().browse(
+                    browse_type, title, "files", mask, False, False, default_path
+                )
+                return result if isinstance(result, str) and result != default_path else None
             result = xbmcgui.Dialog().browse(browse_type, title, "files", mask)
             return result if isinstance(result, str) else None
-
-        if len(visible_sources) == 1 and not visible_sources[0].label:
-            path = visible_sources[0].path
-            if path.lower() == "browse":
-                result = xbmcgui.Dialog().browse(browse_type, title, "files", mask)
-            else:
-                result = xbmcgui.Dialog().browse(
-                    browse_type, title, "files", mask, False, False, path
-                )
-            return result if isinstance(result, str) and result != path else None
 
         while True:
             listitems = []

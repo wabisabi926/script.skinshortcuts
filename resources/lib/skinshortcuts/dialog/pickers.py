@@ -108,7 +108,7 @@ def _browse_placeholder_for_content(
     icon = content.icon if content.icon else "DefaultFolder.png"
 
     if as_widget:
-        label = resolve_label(content.label) if content.label else LANGUAGE(32058)
+        label = content.label if content.label else LANGUAGE(32058)
         return Widget(
             name=name,
             label=label,
@@ -149,6 +149,12 @@ class PickersMixin:
         def _get_item_properties(self, item: MenuItem) -> dict[str, str]: ...
         def _refresh_selected_item(self) -> None: ...
         def _log(self, msg: str) -> None: ...
+
+    def _icon_overrides(self) -> dict[str, str]:
+        """Icon override map from the active skin config, empty if none loaded."""
+        if self.manager and self.manager.config:
+            return self.manager.config.icon_overrides
+        return {}
 
     def _choose_shortcut(self) -> None:
         """Choose a shortcut from groupings."""
@@ -352,7 +358,7 @@ class PickersMixin:
 
     def _resolve_content_to_widgets(self, content: Content) -> list[Widget]:
         """Resolve a Content reference to a list of Widget objects for the picker."""
-        provider = ContentProvider()
+        provider = ContentProvider(icon_overrides=self._icon_overrides())
         resolved = provider.resolve(content)
 
         source = content.source.rstrip("s") if content.source.endswith("s") else content.source
@@ -376,7 +382,7 @@ class PickersMixin:
 
     def _resolve_content_to_shortcuts(self, content: Content) -> list[Shortcut]:
         """Resolve a Content reference to a list of Shortcut objects for the picker."""
-        provider = ContentProvider()
+        provider = ContentProvider(icon_overrides=self._icon_overrides())
         resolved = provider.resolve(content)
 
         shortcuts = []
@@ -748,16 +754,6 @@ class PickersMixin:
             xbmcgui.Dialog().notification("No Items", "No items available in this group")
             return None
 
-        if (
-            len(visible_items) == 1
-            and isinstance(visible_items[0], leaf_types)
-            and not (
-                isinstance(visible_items[0], (Shortcut, Widget))
-                and visible_items[0].name.startswith("content-placeholder-")
-            )
-        ):
-            return visible_items[0]
-
         preselect = -1
         while True:
             listitems = []
@@ -880,6 +876,17 @@ class PickersMixin:
                 condition = getattr(item, "condition", "")
                 if condition and not evaluate_condition(condition, item_props):
                     continue
+                if isinstance(item, group_types) and getattr(item, "flat", False):
+                    expanded = self._filter_picker_items(
+                        item.items,
+                        item_props,
+                        leaf_types,
+                        group_types,
+                        content_resolver,
+                        create_folder_group,
+                    )
+                    visible_items.extend(expanded)
+                    continue
                 visible_items.append(item)
 
         return visible_items
@@ -950,42 +957,50 @@ class PickersMixin:
             Tuple of (path, label, icon) for selected location, or None if cancelled
         """
         browse_provider = get_browse_provider()
+        browse_provider.set_icon_overrides(self._icon_overrides())
         current_path = path
         current_label = title
         history: list[tuple[str, str]] = []
 
         while True:
-            detail_view = not history and not _is_heavy_library_path(current_path)
+            detail_view = not _is_heavy_library_path(current_path)
 
-            items = browse_provider.list_directory(current_path, include_art=detail_view)
-            if items is None:
-                xbmcgui.Dialog().notification(
-                    "Cannot Browse", "Unable to list directory contents"
-                )
-                return None
+            xbmc.executebuiltin("ActivateWindow(busydialognocancel)")
+            try:
+                items = browse_provider.list_directory(current_path, include_art=detail_view)
+                if items is None:
+                    xbmcgui.Dialog().notification(
+                        "Cannot Browse", "Unable to list directory contents"
+                    )
+                    return None
 
-            dialog_title = current_label or "Browse"
+                dialog_title = current_label or "Browse"
+
+                if detail_view:
+                    listitems = []
+                    use_location_item = xbmcgui.ListItem(LANGUAGE(32058))
+                    use_location_item.setArt({"icon": "DefaultFolder.png"})
+                    listitems.append(use_location_item)
+                    for item in items:
+                        label = item.label
+                        if item.is_directory:
+                            label = f"{label} >"
+                        listitem = xbmcgui.ListItem(label)
+                        listitem.setArt({"icon": item.icon})
+                        listitems.append(listitem)
+                else:
+                    listitems = [LANGUAGE(32058)]
+                    for item in items:
+                        label = item.label
+                        if item.is_directory:
+                            label = f"{label} >"
+                        listitems.append(label)
+            finally:
+                xbmc.executebuiltin("Dialog.Close(busydialognocancel)")
 
             if detail_view:
-                listitems = []
-                use_location_item = xbmcgui.ListItem(LANGUAGE(32058))
-                use_location_item.setArt({"icon": "DefaultFolder.png"})
-                listitems.append(use_location_item)
-                for item in items:
-                    label = item.label
-                    if item.is_directory:
-                        label = f"{label} >"
-                    listitem = xbmcgui.ListItem(label)
-                    listitem.setArt({"icon": item.icon})
-                    listitems.append(listitem)
                 selected = xbmcgui.Dialog().select(dialog_title, listitems, useDetails=True)
             else:
-                listitems = [LANGUAGE(32058)]
-                for item in items:
-                    label = item.label
-                    if item.is_directory:
-                        label = f"{label} >"
-                    listitems.append(label)
                 selected = xbmcgui.Dialog().select(dialog_title, listitems)
 
             if selected == -1:

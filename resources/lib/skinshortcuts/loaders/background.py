@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..exceptions import BackgroundConfigError
+from ..log import get_logger, notify
 from ..models.background import (
     Background,
     BackgroundConfig,
@@ -14,6 +15,8 @@ from ..models.background import (
     PlaylistSource,
 )
 from .base import get_attr, get_text, parse_content, parse_xml
+
+log = get_logger("BackgroundLoader")
 
 TYPE_MAP = {
     "static": BackgroundType.STATIC,
@@ -33,7 +36,9 @@ OPTIONAL_PATH_TYPES = {
 }
 
 
-def load_backgrounds(path: str | Path) -> BackgroundConfig:
+def load_backgrounds(
+    path: str | Path, icon_overrides: dict[str, str] | None = None
+) -> BackgroundConfig:
     """Load background configuration from XML file.
 
     Parses <background> and <group> elements directly from root <backgrounds> element.
@@ -42,6 +47,7 @@ def load_backgrounds(path: str | Path) -> BackgroundConfig:
     Returns:
         BackgroundConfig containing backgrounds, groupings, and settings.
     """
+    overrides = icon_overrides or {}
     path = Path(path)
     if not path.exists():
         return BackgroundConfig()
@@ -53,7 +59,7 @@ def load_backgrounds(path: str | Path) -> BackgroundConfig:
 
     for child in root:
         if child.tag == "background":
-            bg = _parse_background(child, str(path))
+            bg = _parse_background(child, str(path), overrides)
             backgrounds.append(bg)
             groupings.append(bg)
         elif child.tag == "group":
@@ -67,7 +73,9 @@ def load_backgrounds(path: str | Path) -> BackgroundConfig:
     )
 
 
-def _parse_background(elem, path: str) -> Background:
+def _parse_background(
+    elem, path: str, icon_overrides: dict[str, str] | None = None
+) -> Background:
     bg_name = get_attr(elem, "name")
     if not bg_name:
         raise BackgroundConfigError(path, "Background missing 'name' attribute")
@@ -82,6 +90,13 @@ def _parse_background(elem, path: str) -> Background:
 
     if not bg_path and bg_type not in OPTIONAL_PATH_TYPES:
         raise BackgroundConfigError(path, f"Background '{bg_name}' missing <path>")
+
+    if bg_path and bg_type in (BackgroundType.BROWSE, BackgroundType.MULTI) and elem.find("source") is not None:
+        log.warning(
+            f"Background '{bg_name}' in {path} has both <path> and <source>; ignoring <path>"
+        )
+        notify("Background Config", f"'{bg_name}' has both <path> and <source>")
+        bg_path = ""
 
     sources = []
     browse_sources = []
@@ -101,10 +116,12 @@ def _parse_background(elem, path: str) -> Background:
                 icon=get_attr(source_elem, "icon") or "",
             ))
         else:
+            overrides = icon_overrides or {}
+            explicit_icon = get_attr(source_elem, "icon")
             sources.append(PlaylistSource(
                 label=source_label,
                 path=source_path,
-                icon=get_attr(source_elem, "icon", "DefaultPlaylist.png"),
+                icon=explicit_icon or overrides.get("DefaultPlaylist.png", "DefaultPlaylist.png"),
             ))
 
     return Background(
@@ -124,7 +141,15 @@ def _parse_background_group(elem, path: str) -> BackgroundGroup | None:
     """Parse a background group element (supports nested groups, backgrounds, and content)."""
     group_name = get_attr(elem, "name")
     label = get_attr(elem, "label")
-    if not group_name or not label:
+    flat = (get_attr(elem, "flat") or "").lower() == "true"
+
+    if not group_name:
+        log.warning(f"Background group in {path} missing 'name' attribute")
+        notify("Background Group Error", "Group missing 'name' (see log)")
+        return None
+    if not label and not flat:
+        log.warning(f"Background group '{group_name}' in {path} missing 'label' (required when not flat)")
+        notify("Background Group Error", f"'{group_name}' missing label")
         return None
 
     condition = get_attr(elem, "condition") or ""
@@ -152,4 +177,5 @@ def _parse_background_group(elem, path: str) -> BackgroundGroup | None:
         visible=visible,
         icon=icon,
         items=items,
+        flat=flat,
     )

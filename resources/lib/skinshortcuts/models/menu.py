@@ -230,6 +230,7 @@ class ShortcutGroup:
     visible: str = ""  # Kodi visibility condition (evaluated at runtime)
     icon: str = ""
     items: list[GroupContent] = field(default_factory=list)
+    flat: bool = False  # No folder header; children render at parent level
 
 
 @dataclass
@@ -438,4 +439,5 @@ class MenuConfig:
     icon_sources: list[IconSource] = field(default_factory=list)
     subdialogs: list[SubDialog] = field(default_factory=list)
     action_overrides: list[ActionOverride] = field(default_factory=list)
+    icon_overrides: dict[str, str] = field(default_factory=dict)  # DefaultX.png -> override path
     show_context_menu: bool = True  # Whether to show context menu on items
