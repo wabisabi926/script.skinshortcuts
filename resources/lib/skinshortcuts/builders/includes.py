@@ -96,7 +96,11 @@ class IncludesBuilder:
                 continue
             if menu.name.startswith("custom-"):
                 continue
-            include_name = menu.template_origin or menu.name
+            if not menu.template_origin:
+                continue
+            if not menu.standalone:
+                continue
+            include_name = menu.template_origin
             if "/" in include_name:
                 continue
             if include_name in emitted_submenu_names:
