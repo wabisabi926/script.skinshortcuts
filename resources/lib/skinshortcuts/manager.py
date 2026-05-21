@@ -65,9 +65,8 @@ class MenuManager:
         referenced: set[str] = set()
         for menu in self.config.default_menus:
             for item in menu.items:
-                ref = item.submenu or item.name
-                if ref:
-                    referenced.add(ref)
+                if item.submenu:
+                    referenced.add(item.submenu)
         for menu_override in self.config.userdata.menus.values():
             for item_override in menu_override.items:
                 if item_override.submenu:
@@ -122,8 +121,8 @@ class MenuManager:
 
     @staticmethod
     def submenu_template(item: MenuItem) -> str:
-        """Template name to seed this item's submenu from (falls back to item name)."""
-        return item.submenu or item.name
+        """Template name to seed this item's submenu from. Empty if no explicit binding."""
+        return item.submenu or ""
 
     def ensure_item_submenu(self, parent_menu_name: str, item: MenuItem) -> Menu:
         """Return the per-item submenu, seeding from template on first access."""
@@ -180,6 +179,7 @@ class MenuManager:
 
         prop_name = f"customWidget{suffix}"
         item.properties[prop_name] = cw_menu_id
+        item.is_placeholder = False
         self._changed = True
 
         return cw_menu_id
@@ -223,6 +223,7 @@ class MenuManager:
             if cw_menu_id in self.working:
                 self.working[cw_menu_id].items.clear()
             del item.properties[prop_name]
+            item.is_placeholder = False
             self._changed = True
             return True
 
@@ -260,6 +261,7 @@ class MenuManager:
                 name=item_name,
                 label=label or "New Item",
                 actions=[Action(action="noop")],
+                is_placeholder=not label,
             )
 
         if after_index is not None and 0 <= after_index < len(menu.items):
@@ -308,6 +310,8 @@ class MenuManager:
         """
         menu = self._ensure_working_menu(menu_id)
 
+        menu.items[:] = [i for i in menu.items if not (i.is_placeholder and not i.actions)]
+
         restored = copy.deepcopy(item)
         menu.items.append(restored)
         self._changed = True
@@ -324,6 +328,8 @@ class MenuManager:
             True if item was reset
         """
         default_menu = self.config.get_default_menu(menu_id)
+        if default_menu is None and "/" in menu_id:
+            default_menu = self._template_for_submenu_key(menu_id)
         if not default_menu:
             return False
 
@@ -456,6 +462,8 @@ class MenuManager:
             return False
 
         default_menu = self.config.get_default_menu(menu_id)
+        if default_menu is None and "/" in menu_id:
+            default_menu = self._template_for_submenu_key(menu_id)
         if not default_menu:
             return False
 
@@ -489,6 +497,8 @@ class MenuManager:
             List of MenuItems that can be restored
         """
         default_menu = self.config.get_default_menu(menu_id)
+        if default_menu is None and "/" in menu_id:
+            default_menu = self._template_for_submenu_key(menu_id)
         if not default_menu:
             return []
 
@@ -607,6 +617,7 @@ class MenuManager:
         elif prop_name in item.properties:
             del item.properties[prop_name]
 
+        item.is_placeholder = False
         self._changed = True
         return True
 
@@ -623,6 +634,7 @@ class MenuManager:
         else:
             setattr(item, prop, value)
 
+        item.is_placeholder = False
         self._changed = True
         return True
 
@@ -720,13 +732,15 @@ class MenuManager:
 
         if default is None:
             for idx, item in enumerate(working.items):
+                if item.is_placeholder:
+                    continue
                 item_override = self._item_to_override(item, is_new=True)
                 item_override.position = idx
                 override.items.append(item_override)
             return override if override.items else None
 
         default_items = {item.name: item for item in default.items}
-        working_items = {item.name: item for item in working.items}
+        working_items = {item.name: item for item in working.items if not item.is_placeholder}
 
         for name, default_item in default_items.items():
             if name not in working_items:
@@ -738,6 +752,8 @@ class MenuManager:
                 override.removed.append(name)
 
         for idx, working_item in enumerate(working.items):
+            if working_item.is_placeholder:
+                continue
             default_item = default_items.get(working_item.name)
 
             if default_item is None:

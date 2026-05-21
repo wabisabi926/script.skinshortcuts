@@ -238,16 +238,20 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
             self.items = self.manager.get_menu_items(self.menu_id)
 
             if not self.items:
-                    if self.menu_id.startswith("user-"):
-                        menu_suffix = self.menu_id[5:]
-                    else:
-                        menu_suffix = self.menu_id
-                    default_item = MenuItem(
-                        name=f"sub-{menu_suffix[:8]}",
-                        label="New Item",
-                        icon="DefaultFolder.png",
-                    )
-                    self.items.append(default_item)
+                self._inject_empty_placeholder()
+
+    def _inject_empty_placeholder(self) -> None:
+        """Add a placeholder so an empty list still shows something to click."""
+        if self.menu_id.startswith("user-"):
+            menu_suffix = self.menu_id[5:]
+        else:
+            menu_suffix = self.menu_id
+        placeholder = MenuItem(
+            name=f"sub-{menu_suffix[:8]}",
+            label="New Item",
+            is_placeholder=True,
+        )
+        self.items.append(placeholder)
 
     def _display_items(self) -> None:
         """Display items in the list control. Called once during onInit."""
@@ -390,14 +394,17 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
                 listitem.setProperty(f"{prop_name}Label", resolved_label)
 
         if self.manager:
-            template_name = item.submenu or item.name
-            template = self.manager.config.get_default_menu(template_name)
+            template = (
+                self.manager.config.get_default_menu(item.submenu)
+                if item.submenu
+                else None
+            )
             instance_key = self.manager.submenu_key(self.menu_id, item.name)
             instance = self.manager.config.get_menu(instance_key)
             effective = instance if (instance and instance.items) else template
             if effective and effective.items:
                 listitem.setProperty("hasSubmenu", "true")
-                listitem.setProperty("submenu", template_name)
+                listitem.setProperty("submenu", item.submenu or "")
 
             is_modified = False
             if self.manager:
