@@ -9,7 +9,7 @@ from ..exceptions import WidgetConfigError
 from ..log import get_logger, notify
 from ..models import Content, Widget, WidgetGroup
 from ..models.widget import WidgetConfig
-from .base import get_attr, get_int, get_text, parse_content, parse_xml
+from .base import get_attr, get_bool, get_int, get_text, parse_content, parse_xml
 
 log = get_logger("WidgetLoader")
 
@@ -73,7 +73,7 @@ def _parse_widget(elem, path: str, default_source: str = "") -> Widget:
     raw_target = get_attr(elem, "target") or "videos"
     target = TARGET_MAP.get(raw_target.lower(), raw_target)
 
-    browse = (get_attr(elem, "browse") or "").lower() == "true"
+    browse = get_bool(elem, "browse")
 
     return Widget(
         name=widget_name,
@@ -84,9 +84,9 @@ def _parse_widget(elem, path: str, default_source: str = "") -> Widget:
         icon=get_attr(elem, "icon") or "",
         condition=get_attr(elem, "condition") or "",
         visible=get_attr(elem, "visible") or "",
+        limit=get_int(elem, "limit"),
         sort_by=get_text(elem, "sortby") or "",
         sort_order=get_text(elem, "sortorder") or "",
-        limit=get_int(elem, "limit"),
         source=source,
         slot=get_attr(elem, "slot") or "",
         browse=browse,
@@ -97,7 +97,7 @@ def _parse_widget_group(elem, path: str, default_source: str = "") -> WidgetGrou
     """Parse a widget group element (supports nested groups, widgets, and content)."""
     group_name = get_attr(elem, "name")
     label = get_attr(elem, "label")
-    flat = (get_attr(elem, "flat") or "").lower() == "true"
+    flat = get_bool(elem, "flat")
 
     if not group_name:
         log.warning(f"Widget group in {path} missing 'name' attribute")

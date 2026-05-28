@@ -5,11 +5,8 @@ from __future__ import annotations
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import TypeVar
 
 from ..exceptions import ConfigError
-
-T = TypeVar("T")
 
 NO_SUFFIX_PROPERTIES = frozenset({
     "name",
@@ -103,11 +100,11 @@ def get_int(elem: ET.Element, child: str, default: int | None = None) -> int | N
 
 
 def get_bool(elem: ET.Element, attr: str, default: bool = False) -> bool:
-    """Get boolean from attribute value."""
+    """Get boolean from attribute value (case-insensitive 'true' match)."""
     value = elem.get(attr)
     if value is None:
         return default
-    return value.lower() == "true"
+    return value.strip().lower() == "true"
 
 
 def parse_content(elem: ET.Element):
