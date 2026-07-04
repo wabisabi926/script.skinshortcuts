@@ -1,29 +1,12 @@
-<img src="https://raw.githubusercontent.com/MikeSiLVO/script.skinshortcuts/main/resources/media/icon.png" width="256" height="256" alt="Skin Shortcuts">
-
 # Skin Shortcuts
 
-[![Build Status](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2FMikeSiLVO%2Fscript.skinshortcuts%2Fbadge&logo=none)](https://actions-badge.atrox.dev/MikeSiLVO/script.skinshortcuts/goto)
+[![Type Check](https://github.com/MikeSiLVO/script.skinshortcuts/actions/workflows/pyright.yml/badge.svg)](https://github.com/MikeSiLVO/script.skinshortcuts/actions/workflows/pyright.yml)
 ![License](https://img.shields.io/badge/license-GPL--2.0--only-success.svg)
 ![Kodi Version](https://img.shields.io/badge/kodi-piers%2B-success.svg)
 
 Skin Shortcuts enables user-customizable menus for Kodi skins. Users can add, remove, reorder menu items, assign widgets, backgrounds, and more through a management dialog that you design.
 
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Quick Start](#quick-start)
-- [File Structure](#file-structure)
-- [Documentation](#documentation)
-- [How It Works](#how-it-works)
-- [License](#license)
-
----
-
 ## Overview
-
-Skin Shortcuts bridges the gap between skin developers and users by providing:
 
 - **Customizable Menus**: Users modify menus without editing XML
 - **Widget System**: Assign dynamic content to menu items
@@ -32,96 +15,12 @@ Skin Shortcuts bridges the gap between skin developers and users by providing:
 - **Template Engine**: Generate complex skin includes from simple definitions
 - **Property System**: Extensible custom properties with picker dialogs
 
----
-
-## Quick Start
-
-### 1. Create Configuration Files
-
-Create a `shortcuts/` folder in your skin root with these files:
+The script merges skin defaults with the user's changes and writes includes your skin references. Only the user's changes are stored.
 
 ```
-skin.name/
-└── shortcuts/
-    ├── menus.xml         # Menu structure and items
-    ├── widgets.xml       # Widget definitions (optional)
-    ├── backgrounds.xml   # Background options (optional)
-    ├── properties.xml    # Custom property schemas (optional)
-    ├── templates.xml     # Output templates (optional)
-    └── views.xml         # View locking rules (optional)
+skin defaults          user customizations           generated includes
+(shortcuts/*.xml)   +   (skin.name.userdata.json)  =  (script-skinshortcuts-includes.xml)
 ```
-
-### 2. Define a Menu
-
-`shortcuts/menus.xml`:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<menus>
-  <menu name="mainmenu">
-    <item name="movies">
-      <label>$LOCALIZE[342]</label>
-      <action>ActivateWindow(Videos,videodb://movies/)</action>
-      <icon>DefaultMovies.png</icon>
-    </item>
-    <item name="settings">
-      <label>$LOCALIZE[10004]</label>
-      <action>ActivateWindow(Settings)</action>
-      <icon>DefaultAddonProgram.png</icon>
-    </item>
-  </menu>
-</menus>
-```
-
-### 3. Open the Management Dialog
-
-```xml
-<onclick>RunScript(script.skinshortcuts,type=manage&amp;menu=mainmenu)</onclick>
-```
-
-### 4. Display the Menu
-
-Use the generated include in your skin:
-
-```xml
-<control type="list" id="9000">
-  <content>
-    <include>skinshortcuts-mainmenu</include>
-  </content>
-</control>
-```
-
----
-
-## File Structure
-
-```
-skin.name/
-└── shortcuts/
-    ├── menus.xml         # Menus, items, and shortcut picker groupings
-    ├── widgets.xml       # Widget definitions and picker groupings
-    ├── backgrounds.xml   # Background options
-    ├── properties.xml    # Custom property schemas
-    ├── templates.xml     # Template definitions for include generation
-    └── views.xml         # View locking rules and content detection
-```
-
-**Generated Output:**
-
-```
-skin.name/
-└── 16x9/
-    └── script-skinshortcuts-includes.xml
-```
-
-**User Data:**
-
-```
-userdata/addon_data/script.skinshortcuts/
-└── skin.name.userdata.json
-```
-
----
 
 ## Documentation
 
@@ -157,26 +56,37 @@ userdata/addon_data/script.skinshortcuts/
 | [Conditions](docs/skinning/conditions.md) | Condition syntax for properties and visibility |
 | [Built-in Properties](docs/skinning/builtin-properties.md) | Properties available on menu items |
 
----
+## Quick Start
 
-## How It Works
+**1. Define a menu** in `shortcuts/menus.xml`:
 
-1. **Skin defines defaults** in XML configuration files
-2. **User customizes** through the management dialog
-3. **Script generates** `script-skinshortcuts-includes.xml`
-4. **Skin uses** the generated includes
-
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<menus>
+  <menu name="mainmenu">
+    <item name="movies">
+      <label>$LOCALIZE[342]</label>
+      <action>ActivateWindow(Videos,videodb://movies/)</action>
+      <icon>DefaultMovies.png</icon>
+    </item>
+  </menu>
+</menus>
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────────────────┐
-│ Skin Config     │     │ User Data        │     │ Generated Output            │
-│ (shortcuts/)    │  +  │ (.userdata.json) │  →  │ (script-skinshortcuts-*.xml)│
-└─────────────────┘     └──────────────────┘     └─────────────────────────────┘
+
+**2. Add a button** to open the management dialog:
+
+```xml
+<onclick>RunScript(script.skinshortcuts,type=manage,menu=mainmenu)</onclick>
 ```
 
-The script merges skin defaults with user customizations and outputs includes that your skin references. When users modify menus, only their changes are stored.
+**3. Display the menu** using the generated include:
 
----
+```xml
+<control type="list" id="9000">
+  <content>
+    <include>skinshortcuts-mainmenu</include>
+  </content>
+</control>
+```
 
-## License
-
-GPL-2.0-only
+See [Getting Started](docs/skinning/getting-started.md) for the full walkthrough.
