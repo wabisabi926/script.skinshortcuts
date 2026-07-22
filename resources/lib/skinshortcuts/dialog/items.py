@@ -15,11 +15,18 @@ except ImportError:
 
 from ..localize import LANGUAGE, resolve_label
 from ..models import Action, BrowseSource, IconSource, MenuItem
+from ..providers import normalize_image
 from .pickers import picker_select
 
 if TYPE_CHECKING:
     from ..manager import MenuManager
     from ..models import PropertySchema
+
+
+def _browse_path(browse_type: int, title: str, start: str = "") -> str:
+    """Browse for a file, unwrapping the image:// form Kodi's image browser returns."""
+    result = xbmcgui.Dialog().browse(browse_type, title, "files", defaultt=start)
+    return normalize_image(result) if isinstance(result, str) else ""
 
 
 class ItemsMixin:
@@ -251,7 +258,6 @@ class ItemsMixin:
             sources=sources,
             title=xbmc.getLocalizedString(1030),  # "Choose icon"
             browse_type=2,  # Image file
-            mask=".png|.jpg|.gif",
             item_properties=item.properties,
             default_path=default_path,
         )
@@ -366,7 +372,6 @@ class ItemsMixin:
         sources: list[IconSource] | list[BrowseSource],
         title: str,
         browse_type: int,
-        mask: str = "",
         item_properties: dict[str, str] | None = None,
         default_path: str = "",
     ) -> str | None:
@@ -376,7 +381,6 @@ class ItemsMixin:
             sources: List of IconSource or BrowseSource objects
             title: Dialog title
             browse_type: Kodi browse type (0=folder, 2=image file)
-            mask: File mask for filtering (e.g., ".png|.jpg")
             item_properties: Current item properties for condition evaluation
             default_path: Starting path when sources is empty (direct browse mode)
 
@@ -398,12 +402,9 @@ class ItemsMixin:
 
         if not visible_sources:
             if default_path:
-                result = xbmcgui.Dialog().browse(
-                    browse_type, title, "files", mask, False, False, default_path
-                )
-                return result if isinstance(result, str) and result != default_path else None
-            result = xbmcgui.Dialog().browse(browse_type, title, "files", mask)
-            return result if isinstance(result, str) else None
+                result = _browse_path(browse_type, title, default_path)
+                return result if result and result != default_path else None
+            return _browse_path(browse_type, title) or None
 
         while True:
             listitems = []
@@ -412,6 +413,9 @@ class ItemsMixin:
                 listitem = xbmcgui.ListItem(label)
                 if source.icon:
                     listitem.setArt({"icon": source.icon})
+                row_path = "" if source.path.lower() == "browse" else source.path
+                listitem.setProperty("path", row_path)
+                listitem.setProperty("name", label)
                 listitems.append(listitem)
 
             selected = picker_select("browse", title, listitems, useDetails=True)
@@ -423,13 +427,11 @@ class ItemsMixin:
             path = source.path
 
             if path.lower() == "browse":
-                result = xbmcgui.Dialog().browse(browse_type, title, "files", mask)
+                result = _browse_path(browse_type, title)
             else:
-                result = xbmcgui.Dialog().browse(
-                    browse_type, title, "files", mask, False, False, path
-                )
+                result = _browse_path(browse_type, title, path)
 
-            if result and isinstance(result, str) and result != path:
+            if result and result != path:
                 return result
 
     def _show_context_menu(self) -> None:
