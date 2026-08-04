@@ -50,9 +50,16 @@ class PickerGroup(Protocol):
     items: list
 
 
-from ..constants import ADDONS_SOURCE_MAP, WINDOW_MAP, extract_path_from_action
+from ..constants import (
+    ADDONS_SOURCE_MAP,
+    TARGET_MAP,
+    WINDOW_MAP,
+    extract_path_from_action,
+    extract_window_from_action,
+)
 from ..loaders import evaluate_condition, load_groupings
 from ..localize import LANGUAGE, resolve_label
+from ..log import get_logger
 from ..playlists import (
     SORT_OPTIONS,
     SortOption,
@@ -78,7 +85,10 @@ from ..providers import ContentProvider, get_browse_provider
 
 if TYPE_CHECKING:
     from ..manager import MenuManager
+    from ..providers.content import ResolvedShortcut
 
+
+log = get_logger("Pickers")
 
 PLACEHOLDER_PREFIX = "content-placeholder-"
 
@@ -196,13 +206,14 @@ def _content_folder_path(content: Content) -> str:
 
 
 def _browse_placeholder_for_content(
-    content: Content, *, as_widget: bool = False, parent_label: str = ""
+    content: Content, *, as_widget: bool = False, parent_label: str = "", parent_icon: str = ""
 ) -> Shortcut | Widget | None:
     """Create a "Create menu item to here" placeholder for an addons content section.
 
-    Returns a Shortcut (shortcut picker) or Widget (widget picker) pointing at
-    addons://sources/<type>/, so users can commit a menu item or widget to the
-    addon category root even when no addons of that type are installed.
+    Shortcut or Widget pointing at addons://sources/<type>/, so a menu item can
+    commit to the addon category root with no addons of that type installed. The
+    picker shows this row as string 32058, so the label and icon set here are the
+    ones the committed item gets.
     """
     if content.source.lower() != "addons":
         return None
@@ -213,16 +224,16 @@ def _browse_placeholder_for_content(
 
     path, window = ADDONS_SOURCE_MAP[target]
     name = f"{PLACEHOLDER_PREFIX}{content.source}-{target}"
-    icon = content.icon if content.icon else "DefaultFolder.png"
+    icon = content.icon or parent_icon or "DefaultFolder.png"
 
-    label = content.label or parent_label or LANGUAGE(32058)
+    label = content.label or content.folder or parent_label or LANGUAGE(32058)
 
     if as_widget:
         return Widget(
             name=name,
             label=label,
             path=path,
-            type=target,
+            type="addons",
             target=window,
             icon=icon,
             source="addon",
@@ -534,20 +545,27 @@ class PickersMixin:
         return self._content_provider
 
     def _resolve_content_to_widgets(self, content: Content) -> list[Widget]:
-        """Resolve a Content reference to a list of Widget objects for the picker."""
+        """Resolve a Content reference to a list of Widget objects for the picker.
+
+        Script-only addons resolve to a launcher, which lists nothing, so they are
+        offered as shortcuts but never as widget content.
+        """
         resolved = self._get_content_provider().resolve(content)
 
         source = content.source.rstrip("s") if content.source.endswith("s") else content.source
 
         widgets = []
         for item in resolved:
+            if content.source.lower() == "addons" and not item.browse_path:
+                continue
+
             path = item.browse_path or extract_path_from_action(item.action)
             widget = Widget(
                 name=f"dynamic-{content.source}-{len(widgets)}",
                 label=item.label,
                 path=path,
-                type=item.content_type or content.target or "",
-                target=self._map_target_to_window(content.target),
+                type=item.content_type,
+                target=self._widget_target_window(item, content.target),
                 icon=item.icon,
                 source=source,
                 browse=bool(item.browse_path),
@@ -580,21 +598,39 @@ class PickersMixin:
 
     def _map_target_to_window(self, target: str) -> str:
         """Map content target to widget target window."""
-        from ..constants import TARGET_MAP
+        if not target:
+            return "videos"
 
-        return TARGET_MAP.get(target.lower(), "videos") if target else "videos"
+        window = TARGET_MAP.get(target.lower())
+        if window is None:
+            log.debug(f"target '{target}' is not a known window, using videos")
+            return "videos"
+        return window
+
+    def _widget_target_window(self, item: ResolvedShortcut, content_target: str) -> str:
+        """Window the provider put this item in, falling back to the content target.
+
+        Per item, because one content block can span windows: source="nodes"
+        target="library" resolves to a video entry and a music entry. A favourite
+        can name any window at all, so anything non-media takes the fallback.
+        """
+        window = item.browse_window or extract_window_from_action(item.action)
+        mapped = TARGET_MAP.get(window.lower()) if window else None
+
+        return mapped or self._map_target_to_window(content_target)
 
     def _pick_widget_type(self, addon_type: str) -> str | None:
         """Show dialog to pick widget content type.
 
         Args:
-            addon_type: The addon category (video, audio, executable, pictures)
+            addon_type: The addon category (video, audio, executable, pictures, games)
 
         Returns:
             Selected widget type string, or None if cancelled.
         """
-        if addon_type == "pictures":
-            return "pictures"
+        # one possible type, nothing to ask
+        if addon_type in ("pictures", "games"):
+            return addon_type
 
         if addon_type == "video":
             types = [
@@ -646,6 +682,7 @@ class PickersMixin:
             "programs": "programs",
             "files": "files",
             "pictures": "pictures",
+            "games": "games",
         }
         return type_to_target.get(widget_type, default)
 
@@ -658,6 +695,9 @@ class PickersMixin:
 
     def _browse_widget_path(self, widget: Widget) -> Widget | None:
         """Browse into a widget's path and let user select location.
+
+        A skin-declared type wins; only ask when nothing was declared, since a
+        plugin:// path's content type can't be read off the addon category.
 
         Args:
             widget: Widget with browsable path
@@ -676,10 +716,10 @@ class PickersMixin:
             addon_type = "audio"
         elif widget.target == "programs":
             addon_type = "executable"
-        elif widget.target == "pictures":
-            addon_type = "pictures"
+        elif widget.target in ("pictures", "games"):
+            addon_type = widget.target
 
-        widget_type = self._pick_widget_type(addon_type)
+        widget_type = widget.type or self._pick_widget_type(addon_type)
         if widget_type is None:
             return None
 
@@ -692,7 +732,7 @@ class PickersMixin:
             type=widget_type,
             target=widget_target,
             icon=icon or widget.icon,
-            source="addon",
+            source=widget.source,
         )
 
     def _pick_from_hierarchy(
@@ -868,7 +908,7 @@ class PickersMixin:
         """Pick from items within a group with back navigation."""
         visible_items = self._filter_picker_items(
             group.items, item_props, leaf_types, group_types, content_resolver,
-            create_folder_group, parent_label=resolve_label(group.label),
+            create_folder_group, parent_label=group.label, parent_icon=group.icon,
         )
 
         if not visible_items:
@@ -973,11 +1013,12 @@ class PickersMixin:
         content_resolver: Callable[[Content], list] | None = None,
         create_folder_group: Callable[[str, list, str, str], Any] | None = None,
         parent_label: str = "",
+        parent_icon: str = "",
     ) -> list:
         """Filter and resolve picker items by condition and visibility.
 
-        parent_label names an addons content placeholder when the content
-        element carries no label of its own.
+        parent_label and parent_icon are the fallbacks for an addons content
+        placeholder. Raw, so a language switch still moves the committed label.
         """
         visible_items = []
 
@@ -990,16 +1031,17 @@ class PickersMixin:
                 if content_resolver:
                     resolved = content_resolver(item)
                     placeholder = _browse_placeholder_for_content(
-                        item, as_widget=Widget in leaf_types, parent_label=parent_label
+                        item,
+                        as_widget=Widget in leaf_types,
+                        parent_label=parent_label,
+                        parent_icon=parent_icon,
                     )
                     overrides = self._icon_overrides()
+                    if placeholder:
+                        placeholder.icon = overrides.get(placeholder.icon, placeholder.icon)
                     if item.folder and (resolved or placeholder) and create_folder_group:
-                        # Wrap in one folder like a <group>: item.icon on the
-                        # folder, placeholder as its first child.
+                        # Wrap in one folder like a <group>, placeholder as its first child.
                         if placeholder:
-                            placeholder.icon = overrides.get(
-                                "DefaultFolder.png", "DefaultFolder.png"
-                            )
                             resolved = [placeholder, *resolved]
                         visible_items.append(
                             create_folder_group(
@@ -1008,7 +1050,6 @@ class PickersMixin:
                         )
                     else:
                         if placeholder:
-                            placeholder.icon = overrides.get(placeholder.icon, placeholder.icon)
                             visible_items.append(placeholder)
                         if resolved:
                             visible_items.extend(resolved)
@@ -1026,7 +1067,8 @@ class PickersMixin:
                         group_types,
                         content_resolver,
                         create_folder_group,
-                        parent_label=resolve_label(getattr(item, "label", "")) or parent_label,
+                        parent_label=getattr(item, "label", "") or parent_label,
+                        parent_icon=getattr(item, "icon", "") or parent_icon,
                     )
                     visible_items.extend(expanded)
                     continue
@@ -1224,8 +1266,6 @@ class PickersMixin:
         """
         if not self._is_browsable(shortcut):
             return None
-
-        from ..constants import WINDOW_MAP
 
         window = WINDOW_MAP.get(shortcut.browse.lower(), "Videos")
         return (shortcut.path, window)

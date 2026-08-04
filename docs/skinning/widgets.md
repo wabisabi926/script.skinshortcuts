@@ -61,7 +61,7 @@ Widgets and groups are defined directly at the root level:
 | `name` | Yes | - | Unique identifier |
 | `label` | Yes | - | Display label |
 | `type` | No | - | Content type (e.g., `movies`, `episodes`, `albums`) |
-| `target` | No | `videos` | Target window: `videos`, `music`, `pictures`, `programs` |
+| `target` | No | `videos` | Target window: `videos`, `music`, `pictures`, `programs`, `games`, `files`, `tv`, `radio` |
 | `icon` | No | - | Icon for picker |
 | `source` | No | - | Source type: `library`, `playlist`, `addon`. Inherited from parent group if not set |
 | `condition` | No | - | Property condition (evaluated against item properties) |
@@ -127,6 +127,8 @@ By default, selecting a widget in the picker assigns the widget as-is. Set `brow
 ```
 
 When browsing, the user navigates directories and the first entry ("Create menu item to here") uses the current location as-is. `<content source="addons">` resolves plugin-source addons as browsable automatically, no attribute needed in that case.
+
+The browsed widget keeps the `type` declared on the `<widget>`. Leave `type` off and the user is asked to pick one, since a `plugin://` path's content isn't readable from the add-on category alone. Addons reached through `<content>` always ask, as they carry no declaration of their own.
 
 ### Custom Widgets
 
@@ -247,7 +249,7 @@ Add dynamic content from system sources:
 | Attribute | Description |
 |-----------|-------------|
 | `source` | Content type: `playlists`, `addons`, `sources`, `favourites`, `pvr`, `commands`, `settings`, `library`, `nodes` |
-| `target` | Media context: `videos`, `music`, `pictures`, `programs`, `tv`, `radio` |
+| `target` | Media context: `videos`, `music`, `pictures`, `programs`, `games`, `files`, `tv`, `radio` |
 | `folder` | Wrap items in a folder with this label |
 | `path` | Custom path override |
 | `condition` | Property condition (evaluated against item properties) |
@@ -255,7 +257,7 @@ Add dynamic content from system sources:
 | `icon` | Icon override |
 | `label` | Label override |
 
-For `source="addons"`, an add-on resolves as browsable when it is a plugin add-on (it exposes a `plugin://` path) and as a single-click launcher when it is a script. This is decided per add-on, not per target: a program add-on like AutoWidget is browsable under `target="executable"`, while a plain script launcher there is not. See the [Content Target Reference](menus.md#content-target-reference) for every source's valid targets.
+For `source="addons"`, an add-on resolves as browsable when it is a plugin add-on (it exposes a `plugin://` path) and as a single-click launcher when it is a script. This is decided per add-on, not per target: a program add-on like AutoWidget is browsable under `target="executable"`, while a plain script launcher there is not. Launchers are offered as menu items only. A widget picker lists the browsable add-ons, since a script has no content to fill a widget with. See the [Content Target Reference](menus.md#content-target-reference) for every source's valid targets.
 
 ### Nodes Source
 
