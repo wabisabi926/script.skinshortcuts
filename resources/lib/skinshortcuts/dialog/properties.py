@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from ..log import get_logger
+from ..log import get_logger, notify
 
 _log = get_logger("Properties")
 
@@ -141,6 +141,10 @@ def _label_property_name(prop_name: str) -> str:
     """Label key for a widget slot: "widget.2" -> "widgetLabel.2"."""
     base, suffix = _split_suffix(prop_name)
     return f"{base}Label{suffix}"
+
+
+# handled off the button alone; every other type falls through to options, which needs the property
+BUTTON_ONLY_TYPES = ("widget", "background", "toggle", "text", "number")
 
 
 class PropertiesMixin:
@@ -289,6 +293,13 @@ class PropertiesMixin:
             return True
         if prop_type == "number":
             self._handle_number_property(item, button, prop_name)
+            return True
+
+        if prop is None:
+            notify(
+                "Property Button Error",
+                f"button {button_id}: '{button.property_name}' not defined",
+            )
             return True
 
         return self._handle_options_property(prop, item, button, prop_name)
@@ -646,6 +657,7 @@ class PropertiesMixin:
         sources: list[PlaylistSource],
         prefix: str,
     ) -> PlaylistSource | None:
+        """Pick which source to scan, skipping the dialog when the skin lists one."""
         if len(sources) == 1:
             return sources[0]
 
@@ -669,6 +681,7 @@ class PropertiesMixin:
         prefix: str,
         current_path: str,
     ) -> tuple[str, str, str] | None:
+        """Pick a playlist from one source, returning its path, label and type."""
         playlists = []
 
         for raw_label, path in scan_playlist_files(source.path):
