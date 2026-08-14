@@ -299,9 +299,8 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
 
         list_control.reset()
 
-        for item in self.items:
-            listitem = self._create_listitem(item)
-            list_control.addItem(listitem)
+        # addItem re-sends the whole list on every call
+        list_control.addItems([self._create_listitem(item) for item in self.items])
 
         if focus_index is not None and 0 <= focus_index < len(self.items):
             list_control.selectItem(focus_index)
@@ -309,7 +308,8 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
     def _create_listitem(self, item: MenuItem) -> xbmcgui.ListItem:
         """Create a ListItem from a MenuItem."""
         display_label = resolve_label(item.label)
-        listitem = xbmcgui.ListItem(label=display_label, offscreen=True)
+        # not offscreen: _refresh_selected_item rewrites these in place while bound
+        listitem = xbmcgui.ListItem(label=display_label)
         self._populate_listitem(listitem, item)
         return listitem
 

@@ -7,6 +7,7 @@ browsable (directory) vs selectable (file) items.
 from __future__ import annotations
 
 import json
+import time
 import urllib.parse
 from dataclasses import dataclass
 
@@ -66,6 +67,7 @@ class BrowseProvider:
         if include_art:
             properties.append("art")
 
+        start = time.monotonic()
         result = self._jsonrpc(
             "Files.GetDirectory",
             {
@@ -73,6 +75,10 @@ class BrowseProvider:
                 "media": "files",
                 "properties": properties,
             },
+        )
+        log.debug(
+            f"list_directory: {path} rows={len((result or {}).get('files') or [])} "
+            f"{(time.monotonic() - start) * 1000:.0f}ms"
         )
 
         if result is None:
@@ -82,7 +88,7 @@ class BrowseProvider:
             return []
 
         items = []
-        for file_info in result["files"]:
+        for file_info in result["files"] or []:
             label = file_info.get("label", "")
             file_path = file_info.get("file", "")
             filetype = file_info.get("filetype", "file")

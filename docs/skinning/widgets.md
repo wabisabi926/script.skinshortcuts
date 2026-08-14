@@ -63,7 +63,7 @@ Widgets and groups are defined directly at the root level:
 | `type` | No | - | Content type (e.g., `movies`, `episodes`, `albums`) |
 | `target` | No | `videos` | Target window: `videos`, `music`, `pictures`, `programs`, `games`, `files`, `tv`, `radio` |
 | `icon` | No | - | Icon for picker |
-| `source` | No | - | Source type: `library`, `playlist`, `addon`. Inherited from parent group if not set |
+| `source` | No | - | Source label, surfaced as `widgetSource` (e.g. `library`, `playlist`, `addon`). Any value is passed through. Inherited from parent group if not set |
 | `condition` | No | - | Property condition (evaluated against item properties) |
 | `visible` | No | - | Kodi visibility condition (evaluated at runtime) |
 | `slot` | No | - | Restricts this widget to a specific widget slot (e.g. `widget`, `widget.2`); the widget appears in the picker only when that slot is being edited. Applies to all widget types. A widget with no slot shows for every slot. |
@@ -116,6 +116,8 @@ The `type` attribute helps skins identify content type for styling:
 | `addons` | Add-ons |
 | `custom` | Custom (user-defined items) |
 
+These are conventional values, not a fixed list. `custom` is the only one the script acts on; anything else is passed through to `widgetType` for the skin to use, so a skin can define its own (`weather`, `system`, and so on).
+
 ### Browse Into
 
 By default, selecting a widget in the picker assigns the widget as-is. Set `browse="true"` to let users browse into the widget's path and pick a sub-location instead:
@@ -156,8 +158,8 @@ Organize widgets into categories for the picker dialog:
       <path>videodb://recentlyaddedmovies/</path>
     </widget>
 
-    <widget name="inprogress" label="In Progress" type="movies">
-      <path>videodb://inprogressmovies/</path>
+    <widget name="sets" label="Movie Sets" type="sets">
+      <path>videodb://movies/sets/</path>
     </widget>
 
     <!-- Nested group -->
@@ -191,6 +193,7 @@ Top-level `<widgets>` accepts `<widget>`, `<group>`, and `<content>`. Use `folde
 | `condition` | No | Property condition (evaluated against item properties) |
 | `visible` | No | Kodi visibility condition (evaluated at runtime) |
 | `flat` | No | When `true`, children appear inline at parent level instead of inside a folder |
+| `source` | No | Default `source` for widgets in this group that do not set their own |
 
 Groups can contain:
 
@@ -484,7 +487,7 @@ Use with [items templates](templates.md#dynamic-widgets-pattern) to iterate over
 The parent menu item also carries `submenuPath` — the first widget path of this submenu — so the item can drive visibility or detect "no widgets" directly, without a hidden counter container. To also emit the full numbered list, set `submenuPath="all"` on the parent `<menu>` (or globally with a `<submenuPath>all</submenuPath>` element under `<menus>` for every menu):
 
 ```xml
-<menu name="mainmenu" submenuPath="all">
+<menu name="mainmenu" submenuPath="all">...</menu>
 ```
 
 It goes on the menu, not the submenu, so it also covers submenus a user builds at runtime, which have no `<submenu>` element to annotate.

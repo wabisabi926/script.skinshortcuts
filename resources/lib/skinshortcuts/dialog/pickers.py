@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Literal, Protocol, runtime_checkable
 
@@ -93,6 +94,24 @@ log = get_logger("Pickers")
 PLACEHOLDER_PREFIX = "content-placeholder-"
 
 
+SLOW_RESOLVE_MS = 250
+
+
+def _ms(start: float) -> float:
+    """Elapsed milliseconds, for the picker's timing lines."""
+    return (time.monotonic() - start) * 1000
+
+
+def _log_slow_resolve(content: Content, rows: int, start: float) -> None:
+    """Name the <content> element when resolving it takes long enough to notice."""
+    elapsed = _ms(start)
+    if elapsed >= SLOW_RESOLVE_MS:
+        log.debug(
+            f"slow content: source={content.source} target={content.target} "
+            f"rows={rows} {elapsed:.0f}ms"
+        )
+
+
 def picker_kind(leaf_types: tuple) -> str:
     """skinshortcuts-picker value for a hierarchy picker, from what it is picking."""
     if Widget in leaf_types:
@@ -139,7 +158,9 @@ def _group_count(
         if isinstance(child, Content):
             if content_resolver is None:
                 return ""
+            start = time.monotonic()
             resolved = content_resolver(child)
+            _log_slow_resolve(child, len(resolved), start)
             if child.folder:
                 # folder row is dropped when it resolves to nothing
                 if resolved or _browse_placeholder_for_content(child):
@@ -511,12 +532,12 @@ class PickersMixin:
         overrides = self._icon_overrides()
 
         listitems = []
-        none_item = xbmcgui.ListItem(xbmc.getLocalizedString(231))
+        none_item = xbmcgui.ListItem(xbmc.getLocalizedString(231), offscreen=True)
         none_item.setArt({"icon": overrides.get("DefaultAddonNone.png", "DefaultAddonNone.png")})
         listitems.append(none_item)
 
         for i, w in enumerate(widgets):
-            listitem = xbmcgui.ListItem(resolve_label(w[1]))
+            listitem = xbmcgui.ListItem(resolve_label(w[1]), offscreen=True)
             icon = w[2] if len(w) > 2 and w[2] else "DefaultAddonNone.png"
             listitem.setArt({"icon": overrides.get(icon, icon)})
             if self.manager is not None:
@@ -659,7 +680,7 @@ class PickersMixin:
         overrides = self._icon_overrides()
         listitems = []
         for _type_id, label, icon in types:
-            listitem = xbmcgui.ListItem(label)
+            listitem = xbmcgui.ListItem(label, offscreen=True)
             listitem.setArt({"icon": overrides.get(icon, icon)})
             listitems.append(listitem)
 
@@ -765,8 +786,13 @@ class PickersMixin:
         (label, icon, callback) row at the list bottom, callback returning an
         item or None.
         """
+        start = time.monotonic()
         visible_items = self._filter_picker_items(
             items, item_props, leaf_types, group_types, content_resolver, create_folder_group
+        )
+        log.debug(
+            f"picker: {picker_kind(leaf_types)} root rows={len(visible_items)} "
+            f"built in {_ms(start):.0f}ms"
         )
 
         if not visible_items:
@@ -786,7 +812,7 @@ class PickersMixin:
         while True:
             listitems = []
             if show_none:
-                none_item = xbmcgui.ListItem(xbmc.getLocalizedString(231))
+                none_item = xbmcgui.ListItem(xbmc.getLocalizedString(231), offscreen=True)
                 none_item.setArt(
                     {"icon": overrides.get("DefaultAddonNone.png", "DefaultAddonNone.png")}
                 )
@@ -813,14 +839,14 @@ class PickersMixin:
                     icon = vis_item.icon if vis_item.icon else default_leaf_icon
                 else:
                     icon = vis_item.icon if vis_item.icon else default_leaf_icon
-                listitem = xbmcgui.ListItem(label)
+                listitem = xbmcgui.ListItem(label, offscreen=True)
                 listitem.setArt({"icon": overrides.get(icon, icon)})
                 stamp_picker_props(listitem, vis_item, item_props, content_resolver)
                 listitems.append(listitem)
 
             if custom_action:
                 action_label, action_icon, _callback = custom_action
-                action_item = xbmcgui.ListItem(action_label)
+                action_item = xbmcgui.ListItem(action_label, offscreen=True)
                 action_item.setArt({"icon": overrides.get(action_icon, action_icon)})
                 listitems.append(action_item)
 
@@ -909,10 +935,12 @@ class PickersMixin:
         create_folder_group: Callable[[str, list, str, str], Any] | None = None,
     ) -> Any | None:
         """Pick from items within a group with back navigation."""
+        start = time.monotonic()
         visible_items = self._filter_picker_items(
             group.items, item_props, leaf_types, group_types, content_resolver,
             create_folder_group, parent_label=group.label, parent_icon=group.icon,
         )
+        log.debug(f"picker: {group.name} rows={len(visible_items)} built in {_ms(start):.0f}ms")
 
         if not visible_items:
             xbmcgui.Dialog().notification(LANGUAGE(32141), LANGUAGE(32142))
@@ -943,7 +971,7 @@ class PickersMixin:
                     icon = vis_item.icon if vis_item.icon else default_leaf_icon
                 else:
                     icon = vis_item.icon if vis_item.icon else default_leaf_icon
-                listitem = xbmcgui.ListItem(label)
+                listitem = xbmcgui.ListItem(label, offscreen=True)
                 listitem.setArt({"icon": overrides.get(icon, icon)})
                 stamp_picker_props(listitem, vis_item, item_props, content_resolver)
                 listitems.append(listitem)
@@ -1032,7 +1060,9 @@ class PickersMixin:
                 if item.visible and not _check_visible(item.visible):
                     continue
                 if content_resolver:
+                    start = time.monotonic()
                     resolved = content_resolver(item)
+                    _log_slow_resolve(item, len(resolved), start)
                     placeholder = _browse_placeholder_for_content(
                         item,
                         as_widget=Widget in leaf_types,
@@ -1158,7 +1188,7 @@ class PickersMixin:
                 dialog_title = current_label or LANGUAGE(32151)
 
                 listitems = []
-                use_location_item = xbmcgui.ListItem(LANGUAGE(32058))
+                use_location_item = xbmcgui.ListItem(LANGUAGE(32058), offscreen=True)
                 use_location_item.setArt({"icon": folder_icon})
                 use_location_item.setProperty("path", current_path)
                 use_location_item.setProperty("name", current_label)
@@ -1169,7 +1199,7 @@ class PickersMixin:
                     label = item.label
                     if item.is_directory:
                         label = f"{label} >"
-                    listitem = xbmcgui.ListItem(label)
+                    listitem = xbmcgui.ListItem(label, offscreen=True)
                     listitem.setArt({"icon": item.icon})
                     listitem.setProperty("path", item.path)
                     listitem.setProperty("name", item.label)

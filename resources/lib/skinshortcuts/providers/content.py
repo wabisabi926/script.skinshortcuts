@@ -14,7 +14,7 @@ import xbmc
 import xbmcvfs
 
 from ..log import get_logger
-from ..playlists import unpack_multipath
+from ..playlists import playlists_base_path, unpack_multipath
 from .browse import normalize_image
 
 if TYPE_CHECKING:
@@ -114,7 +114,7 @@ def scan_playlist_files(directory: str) -> list[tuple[str, str]]:
 
     for scan_dir in _expand_playlist_dirs(directory):
         try:
-            _dirs, files = xbmcvfs.listdir(scan_dir)
+            _, files = xbmcvfs.listdir(scan_dir)
         except Exception:
             continue
 
@@ -225,6 +225,9 @@ class ContentProvider:
         for source in sources:
             path = source.get("file", "")
             label = source.get("label", "")
+            # Kodi computes an addons:// row per media type, never stored as a source
+            if path.startswith("addons://"):
+                continue
             if path and label:
                 shortcuts.append(
                     ResolvedShortcut(
@@ -239,23 +242,6 @@ class ContentProvider:
 
         self._cache[cache_key] = shortcuts
         return shortcuts
-
-    def _get_playlists_base_path(self) -> str:
-        """Get the playlist base path from Kodi settings.
-
-        Returns the user-configured playlist path, or the default
-        special://profile/playlists/ if not set.
-        """
-        result = self._jsonrpc(
-            "Settings.GetSettingValue",
-            {"setting": "system.playlistspath"},
-        )
-        if result and result.get("value"):
-            base = result["value"]
-            if not base.endswith("/"):
-                base += "/"
-            return base
-        return "special://profile/playlists/"
 
     def _resolve_playlists(
         self, target: str, custom_path: str = ""
@@ -278,7 +264,7 @@ class ContentProvider:
         if custom_path:
             paths = [custom_path]
         else:
-            base = self._get_playlists_base_path()
+            base = playlists_base_path()
             if normalized == "video":
                 paths = [f"{base}video/", f"{base}mixed/"]
             elif normalized == "music":
