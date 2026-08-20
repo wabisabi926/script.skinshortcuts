@@ -15,10 +15,9 @@ from .loaders import (
     load_views,
     load_widgets,
 )
-from .localize import resolve_label
 from .models import Background, Menu, MenuItem, Widget
 from .models.background import BackgroundConfig, BackgroundGroup
-from .models.menu import ActionOverride, SubDialog
+from .models.menu import IconOverrides, ActionOverride, SubDialog
 from .models.property import PropertySchema
 from .models.template import TemplateSchema
 from .models.views import ViewConfig
@@ -44,7 +43,7 @@ class SkinConfig:
     templates: TemplateSchema = field(default_factory=TemplateSchema)
     property_schema: PropertySchema = field(default_factory=PropertySchema)
     subdialogs: list[SubDialog] = field(default_factory=list)
-    icon_overrides: dict[str, str] = field(default_factory=dict)
+    icon_overrides: IconOverrides = field(default_factory=IconOverrides)
     submenu_path_all: bool = False
 
     @property
@@ -79,13 +78,7 @@ class SkinConfig:
         load_user: bool = True,
         userdata_path: str | None = None,
     ) -> SkinConfig:
-        """Load configuration from shortcuts directory.
-
-        Args:
-            shortcuts_path: Path to skin's shortcuts folder
-            load_user: Whether to load and merge user customizations
-            userdata_path: Optional path to userdata file (for testing)
-        """
+        """Load configuration from shortcuts directory."""
         path = Path(shortcuts_path)
 
         menu_config = load_menus(path / "menus.xml")
@@ -125,12 +118,14 @@ class SkinConfig:
                     continue
                 # source="N" lookups read flat keys; merge user customizations there too
                 override = userdata.menus.get(menu.name)
-                merged = merge_menu(menu, override) if override else menu
+                merged = (
+                    merge_menu(menu, override, menu_config.icon_overrides) if override else menu
+                )
                 _apply_action_overrides(merged, menu_config.action_overrides)
                 menus.append(merged)
                 continue
             override = userdata.menus.get(menu.name)
-            merged = merge_menu(menu, override)
+            merged = merge_menu(menu, override, menu_config.icon_overrides)
             _apply_action_overrides(merged, menu_config.action_overrides)
             menus.append(merged)
 
@@ -145,9 +140,11 @@ class SkinConfig:
                         continue
                     instance = Menu(name=key, is_submenu=True)
                     for item_override in instance_override.items:
-                        instance.items.append(_create_item_from_override(item_override))
+                        instance.items.append(
+                            _create_item_from_override(item_override, menu_config.icon_overrides)
+                        )
                 else:
-                    instance = merge_menu(template, instance_override)
+                    instance = merge_menu(template, instance_override, menu_config.icon_overrides)
                     instance.name = key
                     instance.template_origin = template_name
                 _apply_action_overrides(instance, menu_config.action_overrides)
@@ -163,7 +160,9 @@ class SkinConfig:
                     continue
             user_menu = Menu(name=menu_name, is_submenu=True)
             for item_override in menu_override.items:
-                user_menu.items.append(_create_item_from_override(item_override))
+                user_menu.items.append(
+                    _create_item_from_override(item_override, menu_config.icon_overrides)
+                )
             menus.append(user_menu)
 
         return cls(
@@ -181,10 +180,7 @@ class SkinConfig:
         )
 
     def get_widget(self, widget_name: str) -> Widget | None:
-        """Get widget by name.
-
-        Searches both top-level widgets and widgets within groupings.
-        """
+        """Get widget by name."""
         for widget in self.widgets:
             if widget.name == widget_name:
                 return widget
@@ -208,10 +204,7 @@ class SkinConfig:
         return None
 
     def get_background(self, bg_name: str) -> Background | None:
-        """Get background by name.
-
-        Searches both top-level backgrounds and backgrounds within groupings.
-        """
+        """Get background by name."""
         for bg in self.backgrounds:
             if bg.name == bg_name:
                 return bg
@@ -260,12 +253,7 @@ class SkinConfig:
     def build_includes_from_menus(
         self, output_path: str | Path, menus: list[Menu]
     ) -> None:
-        """Build and write includes.xml from provided menus.
-
-        Args:
-            output_path: Path to write includes.xml
-            menus: List of Menu objects (typically merged with userdata)
-        """
+        """Build and write includes.xml from provided menus."""
         for menu in menus:
             self.resolve_item_properties(menu)
 
@@ -283,9 +271,7 @@ class SkinConfig:
     def derived_item_properties(self, item: MenuItem) -> dict[str, str]:
         """Widget/background sub-properties derivable from the item's assigned names.
 
-        Excludes the widget/background name keys themselves, which are user choices,
-        not derived. Used both to fill items on load and to strip these from saved
-        userdata so they recompute from the name on the next build.
+        Labels stay in $LOCALIZE form so a language change reaches the menu.
         """
         derived: dict[str, str] = {}
 
@@ -293,7 +279,7 @@ class SkinConfig:
         if bg_name:
             bg = self.get_background(bg_name)
             if bg:
-                derived["backgroundLabel"] = resolve_label(bg.label)
+                derived["backgroundLabel"] = bg.label
                 derived["backgroundPath"] = bg.path
 
         widget_name = item.properties.get("widget")
@@ -302,8 +288,6 @@ class SkinConfig:
             if widget:
                 props = widget.to_properties()
                 props.pop("widget", None)
-                if "widgetLabel" in props:
-                    props["widgetLabel"] = resolve_label(props["widgetLabel"])
                 derived.update(props)
 
         return derived
@@ -316,11 +300,7 @@ class SkinConfig:
 
 
 def _apply_action_overrides(menu: Menu, overrides: list[ActionOverride]) -> None:
-    """Apply action overrides to all items in a menu.
-
-    Replaces deprecated/changed actions with their updated versions.
-    Comparison is case-insensitive to handle variations in action strings.
-    """
+    """Apply action overrides to all items in a menu."""
     if not overrides:
         return
 

@@ -3,7 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING
+
+try:
+    import xbmc
+    import xbmcvfs
+
+    IN_KODI = True
+except ImportError:
+    IN_KODI = False
 
 if TYPE_CHECKING:
     from typing import Union
@@ -11,17 +20,57 @@ if TYPE_CHECKING:
     GroupContent = Union["Shortcut", "ShortcutGroup", "Content", "Input"]
 
 
+def skin_has_image(path: str) -> bool:
+    """Whether the skin can draw this texture, packed into an xbt or loose on disk."""
+    if not path:
+        return False
+    if not IN_KODI:
+        return Path(path).exists()
+    if "://" in path or path.startswith("/"):
+        return xbmcvfs.exists(path)
+    return bool(xbmc.skinHasImage(path))
+
+
+@dataclass
+class IconOverrides:
+    """Kodi default icon names mapped to the replacements a skin ships.
+
+    An expression source resolves for the lookup and stays unresolved in the output.
+    """
+
+    source: str = ""
+    explicit: dict[str, str] = field(default_factory=dict)
+    _tested: dict[str, str] = field(default_factory=dict, repr=False)
+
+    def __bool__(self) -> bool:
+        return bool(self.source or self.explicit)
+
+    def __contains__(self, name: str) -> bool:
+        return bool(self.get(name))
+
+    def __getitem__(self, name: str) -> str:
+        found = self.get(name)
+        if not found:
+            raise KeyError(name)
+        return found
+
+    def get(self, name: str, default: str = "") -> str:
+        """The skin's replacement for a default icon name, if it has one."""
+        if name in self.explicit:
+            return self.explicit[name]
+        if not self.source or not name.startswith("Default"):
+            return default
+        if name not in self._tested:
+            from ..localize import resolve_label
+
+            candidate = self.source + name
+            self._tested[name] = candidate if skin_has_image(resolve_label(candidate)) else ""
+        return self._tested[name] or default
+
+
 @dataclass
 class IconSource:
-    """A source for browsing icons.
-
-    Used by the icon picker to provide browse locations. Supports both
-    simple (single path) and advanced (multiple conditional sources) modes.
-
-    Attributes:
-        condition: Property condition (evaluated against item properties)
-        visible: Kodi visibility condition (evaluated at runtime)
-    """
+    """A source for browsing icons."""
 
     label: str
     path: str  # Path to browse, or "browse" for free file browser
@@ -32,19 +81,7 @@ class IconSource:
 
 @dataclass
 class Input:
-    """User input prompt in groupings.
-
-    When selected in the picker, prompts the user for input via keyboard
-    and returns a shortcut with the entered value.
-
-    Attributes:
-        label: Display label in picker
-        type: Input method - "text", "numeric", "ipaddress", "password"
-        for_: What the input becomes - "action", "label", "path"
-        condition: Property condition (evaluated against item properties)
-        visible: Kodi visibility condition (evaluated at runtime)
-        icon: Optional icon for picker display
-    """
+    """User input prompt in groupings."""
 
     label: str
     type: str = "text"
@@ -56,37 +93,7 @@ class Input:
 
 @dataclass
 class Content:
-    """Dynamic content reference for groupings.
-
-    Content references are resolved at runtime to library items like
-    playlists, addons, sources, favourites, etc.
-
-    Attributes:
-        source: The content source type. Valid values:
-            - "playlists": User playlists
-            - "addons": Installed addons
-            - "library": Library nodes (genres, years, etc.)
-            - "sources": File sources
-            - "favourites": User favourites
-            - "pvr": PVR channels/recordings
-            - "commands": System commands (quit, restart, etc.)
-            - "settings": Settings shortcuts
-        target: The media type context. Valid values:
-            - "video", "videos": Video context
-            - "music", "audio": Music context
-            - "pictures", "images": Picture context
-            - "programs", "executable": Program/addon context
-            - "tv": Live TV
-            - "radio": Radio
-        path: Optional custom path (e.g., "special://skin/playlists/")
-        condition: Property condition (evaluated against item properties)
-        visible: Kodi visibility condition (evaluated at runtime)
-        icon: Optional icon override
-        label: Optional label override for the group
-        folder: Optional label for wrapping resolved items in a sub-folder.
-            When set, resolved items appear in a navigable folder with this
-            label instead of being added directly to the parent group.
-    """
+    """Dynamic content reference for groupings."""
 
     source: str
     target: str = ""
@@ -100,10 +107,7 @@ class Content:
 
 @dataclass
 class Action:
-    """An action with optional condition.
-
-    When condition is set, the action only executes if the condition is true.
-    """
+    """An action with optional condition."""
 
     action: str
     condition: str = ""
@@ -111,16 +115,7 @@ class Action:
 
 @dataclass
 class IncludeRef:
-    """A reference to an include, output as <include>name</include>.
-
-    Used with controltype menus to insert include references at specific
-    positions within the output control element.
-
-    Attributes:
-        name: The include name to reference
-        condition: Optional condition attribute on the include element
-        position: Where to place in output - "before-onclick", "after-onclick", or "end"
-    """
+    """A reference to an include, output as <include>name</include>."""
 
     name: str
     condition: str = ""
@@ -129,20 +124,7 @@ class IncludeRef:
 
 @dataclass
 class Protection:
-    """Protection rule for a menu item.
-
-    Protects items from accidental deletion or modification by showing
-    a confirmation dialog before the action is performed.
-
-    Attributes:
-        type: What operations to protect against:
-            - "delete": Only protect against deletion
-            - "action": Only protect against action changes
-            - "disable": Only protect against disabling
-            - "all": Protect against deletion, action changes, and disabling
-        heading: Dialog heading (can be localize string like "$LOCALIZE[123]")
-        message: Dialog message (can be localize string)
-    """
+    """Protection rule for a menu item."""
 
     type: str = "all"  # "delete", "action", "disable", or "all"
     heading: str = ""
@@ -163,21 +145,7 @@ class Protection:
 
 @dataclass
 class Shortcut:
-    """A shortcut option in groupings (for picker dialog).
-
-    Attributes:
-        name: Unique identifier
-        label: Display label (can be localize string ID)
-        actions: Action strings to execute (supports multiple)
-        path: The path to browse (if using browse mode)
-        browse: Target window for browse mode ("videos", "music", "pictures", "programs")
-                When set, path is opened via ActivateWindow({browse}, {path}, return)
-        type: Category/type label (e.g., "Movies", shown as secondary info)
-        icon: Icon path
-        condition: Property condition (evaluated against item properties)
-        visible: Kodi visibility condition for the picker (hides shortcut from picker)
-        item_visible: Visibility condition baked into the resulting menu item when picked
-    """
+    """A shortcut option in groupings (for picker dialog)."""
 
     name: str
     label: str
@@ -189,7 +157,7 @@ class Shortcut:
     icon: str = "DefaultShortcut.png"
     condition: str = ""
     visible: str = ""
-    item_visible: str = ""
+    item_visible: str = ""  # runtime condition for the picked menu item, not a picker filter
     action_play: str = ""
     action_party: str = ""
     source_media: str = ""  # originating file source's media; drives the source playlist flow
@@ -202,11 +170,7 @@ class Shortcut:
         return self.actions[-1] if self.actions else ""
 
     def get_action(self) -> str:
-        """Get the resolved primary action string.
-
-        If browse is set, constructs ActivateWindow action from path.
-        Otherwise returns the primary action directly.
-        """
+        """Get the resolved primary action string."""
         if self.browse and self.path:
             from ..constants import WINDOW_MAP
 
@@ -217,13 +181,7 @@ class Shortcut:
 
 @dataclass
 class ShortcutGroup:
-    """A group/category of shortcuts in groupings.
-
-    Items can be:
-    - Shortcut: A specific shortcut option
-    - ShortcutGroup: A nested sub-group
-    - Content: A dynamic content reference resolved at runtime
-    """
+    """A group/category of shortcuts in groupings."""
 
     name: str
     label: str
@@ -259,11 +217,7 @@ class MenuItem:
 
     @property
     def action(self) -> str:
-        """Primary action for display (last unconditional action).
-
-        For multi-action items the last action is typically the destination,
-        preceding actions are setup (Dialog.Close, SetProperty, etc).
-        """
+        """Primary action for display (last unconditional action)."""
         last = ""
         for act in self.actions:
             if not act.condition:
@@ -282,13 +236,7 @@ class MenuItem:
 
 @dataclass
 class DefaultAction:
-    """A default action applied to all items in a menu.
-
-    Attributes:
-        action: The action to execute
-        when: When to run relative to item actions ("before" or "after")
-        condition: Optional visibility condition
-    """
+    """A default action applied to all items in a menu."""
 
     action: str
     when: str = "before"  # "before" or "after"
@@ -325,6 +273,7 @@ class Menu:
     is_submenu: bool = False
     menu_type: str | None = None
     controltype: str = ""
+    icons: bool = True
     startid: int = 1
     template_only: str = ""  # "submenu"=skip combined submenu include
     build: str = "true"
@@ -370,17 +319,7 @@ class Menu:
 
 @dataclass
 class OnCloseAction:
-    """An action to execute when a subdialog closes.
-
-    Used to trigger follow-up actions based on the item's state after
-    the subdialog. For example, opening a custom widget editor when
-    widgetType=custom is set.
-
-    Attributes:
-        action: The action type ("menu" to open a menu)
-        menu: Menu name for action="menu" (supports {item} placeholder)
-        condition: Visibility condition (evaluated against current item properties)
-    """
+    """An action to execute when a subdialog closes."""
 
     action: str  # "menu"
     menu: str = ""  # For action="menu": menu name (supports {item} placeholder)
@@ -389,27 +328,7 @@ class OnCloseAction:
 
 @dataclass
 class SubDialog:
-    """A sub-dialog definition for the management dialog.
-
-    When the user clicks a button with the specified ID, a child dialog
-    is spawned with the given mode. The mode is set as a window property
-    to control visibility of different panels in the skin XML.
-
-    Alternatively, if `menu` is specified without `mode`, the menu is opened
-    directly without spawning an intermediate subdialog.
-
-    Attributes:
-        button_id: The button ID that triggers this sub-dialog
-        mode: The mode name set in Window.Property(skinshortcuts-dialog)
-        menu: Menu to open directly (supports {item} placeholder). When set
-            without mode, opens the menu immediately without intermediate dialog.
-        setfocus: Optional control ID to focus when the sub-dialog opens
-        suffix: Property suffix for this widget slot (e.g., ".2" for widget 2).
-            When set, all property reads/writes are automatically suffixed,
-            allowing one set of controls to edit multiple widget slots.
-        onclose: Optional list of actions to run when subdialog closes.
-            Actions are evaluated in order; first matching condition wins.
-    """
+    """A sub-dialog definition for the management dialog."""
 
     button_id: int
     mode: str = ""
@@ -421,14 +340,7 @@ class SubDialog:
 
 @dataclass
 class ContextMenuButton:
-    """A row in the management dialog context menu.
-
-    Attributes:
-        button_id: Button clicked when the row is chosen; built-in, property or subdialog
-        label: Row label; falls back to the script's own label for built-in IDs
-        condition: Property condition, checked against the selected item
-        visible: Kodi visibility condition
-    """
+    """A row in the management dialog context menu."""
 
     button_id: int
     label: str = ""
@@ -438,13 +350,7 @@ class ContextMenuButton:
 
 @dataclass
 class ContextMenu:
-    """Context menu settings from <contextmenu>.
-
-    Attributes:
-        enabled: Whether the context action opens the menu at all
-        enable_on: Control IDs the context action fires on; empty means anywhere
-        buttons: Rows to show; empty means the built-in set
-    """
+    """Context menu settings from <contextmenu>."""
 
     enabled: bool = True
     enable_on: list[int] = field(default_factory=list)
@@ -453,15 +359,7 @@ class ContextMenu:
 
 @dataclass
 class ActionOverride:
-    """An action override that replaces one action with another.
-
-    Used to fix deprecated actions in user-edited menus without requiring
-    manual re-editing. For example, replacing old window names with new ones.
-
-    Attributes:
-        replace: The action string to find and replace
-        action: The new action string to use instead
-    """
+    """An action override that replaces one action with another."""
 
     replace: str
     action: str
@@ -476,6 +374,6 @@ class MenuConfig:
     icon_sources: list[IconSource] = field(default_factory=list)
     subdialogs: list[SubDialog] = field(default_factory=list)
     action_overrides: list[ActionOverride] = field(default_factory=list)
-    icon_overrides: dict[str, str] = field(default_factory=dict)  # DefaultX.png -> override path
+    icon_overrides: IconOverrides = field(default_factory=IconOverrides)
     context_menu: ContextMenu = field(default_factory=ContextMenu)
     submenu_path_all: bool = False  # <submenuPath>all</submenuPath>: numbers every widget submenu

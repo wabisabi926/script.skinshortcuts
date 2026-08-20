@@ -12,6 +12,7 @@ from ..models.menu import (
     ContextMenu,
     ContextMenuButton,
     DefaultAction,
+    IconOverrides,
     IconSource,
     IncludeRef,
     Input,
@@ -33,11 +34,7 @@ log = get_logger("MenuLoader")
 
 
 def load_menus(path: str | Path) -> MenuConfig:
-    """Load complete menu configuration from menus.xml.
-
-    Returns:
-        MenuConfig containing menus, groupings, icon sources, subdialogs, and settings.
-    """
+    """Load complete menu configuration from menus.xml."""
     path = Path(path)
     if not path.exists():
         return MenuConfig()
@@ -67,9 +64,9 @@ def load_menus(path: str | Path) -> MenuConfig:
     )
 
 
-def _parse_menus(root, path: str, icon_overrides: dict[str, str] | None = None) -> list[Menu]:
+def _parse_menus(root, path: str, icon_overrides: IconOverrides | None = None) -> list[Menu]:
     """Parse menu and submenu elements from root."""
-    overrides = icon_overrides or {}
+    overrides = icon_overrides or IconOverrides()
     menus = []
 
     for elem in root.findall("menu"):
@@ -84,12 +81,7 @@ def _parse_menus(root, path: str, icon_overrides: dict[str, str] | None = None) 
 
 
 def _parse_icons(root) -> list[IconSource]:
-    """Parse icon sources from <icons> element.
-
-    Supports two formats:
-    1. Simple: <icons>path/to/icons/</icons>
-    2. Advanced: <icons><source label="..." condition="...">path</source>...</icons>
-    """
+    """Parse icon sources from <icons> element."""
     icons_elem = root.find("icons")
     if icons_elem is None:
         return []
@@ -185,22 +177,7 @@ def _parse_submenu_path(root) -> bool:
 
 
 def _parse_dialogs(root) -> list[SubDialog]:
-    """Parse subdialog definitions from <dialogs> element.
-
-    Schema:
-        <dialogs>
-            <subdialog buttonID="800" mode="widget1" setfocus="309">
-                <prompt>
-                    <option label="Choose Widget" action="subdialog"/>
-                    <option label="Edit Custom" action="menu" menu="{item}.customwidget"
-                            condition="String.IsEqual(widgetType,custom)"/>
-                    <option label="Clear"
-                            onclick="RunScript(script.skinshortcuts,type=clear...)"
-                            condition="String.IsEqual(widgetType,custom)"/>
-                </prompt>
-            </subdialog>
-        </dialogs>
-    """
+    """Parse subdialog definitions from <dialogs> element."""
     dialogs_elem = root.find("dialogs")
     if dialogs_elem is None:
         return []
@@ -245,11 +222,7 @@ def _parse_dialogs(root) -> list[SubDialog]:
 
 
 def _parse_onclose(subdialog_elem) -> list[OnCloseAction]:
-    """Parse onclose actions from a subdialog element.
-
-    <onclose condition="widgetType=custom" action="menu" menu="{item}.customwidget"/>
-    <onclose condition="widgetType.2=custom" action="menu" menu="{item}.customwidget.2"/>
-    """
+    """Parse onclose actions from a subdialog element."""
     actions = []
     for elem in subdialog_elem.findall("onclose"):
         action = get_attr(elem, "action")
@@ -268,13 +241,7 @@ def _parse_onclose(subdialog_elem) -> list[OnCloseAction]:
 
 
 def _parse_overrides(root) -> list[ActionOverride]:
-    """Parse action overrides from <overrides> element.
-
-    Schema:
-        <overrides>
-            <action replace="ActivateWindow(favourites)">ActivateWindow(favouritesbrowser)</action>
-        </overrides>
-    """
+    """Parse action overrides from <overrides> element."""
     overrides_elem = root.find("overrides")
     if overrides_elem is None:
         return []
@@ -290,68 +257,27 @@ def _parse_overrides(root) -> list[ActionOverride]:
     return overrides
 
 
-def _check_visible(visible: str) -> bool:
-    """Whether a Kodi visibility condition passes; an empty one always does."""
-    if not visible:
-        return True
-    try:
-        import xbmc
-
-        return bool(xbmc.getCondVisibility(visible))
-    except Exception:
-        return True
-
-
-def _list_default_pngs(path: str) -> list[str]:
-    """List Default*.png basenames in path; empty on error."""
-    try:
-        import xbmcvfs
-
-        _, files = xbmcvfs.listdir(path)
-        return [f for f in files if f.startswith("Default") and f.endswith(".png")]
-    except Exception:
-        return []
-
-
-def _parse_icon_overrides(root, _picker_sources: list[IconSource]) -> dict[str, str]:
+def _parse_icon_overrides(root, _picker_sources: list[IconSource]) -> IconOverrides:
     """Parse icon overrides from <overrides><icons>.
 
-    Schema:
-        <overrides>
-            <icons>
-                <source visible="...">special://skin/extras/icons-dark/</source>
-                <source>special://skin/extras/icons-light/</source>
-                <icon replace="DefaultFolder.png">files.png</icon>
-            </icons>
-        </overrides>
-
-    Source is opt-in (not inherited from the root <icons>): the picker source
-    is often a flat icon library, not a substitution map.
+    Source is opt-in, not inherited from the root <icons>, which is usually a flat icon
+    library rather than a substitution map.
     """
     overrides_elem = root.find("overrides")
     if overrides_elem is None:
-        return {}
+        return IconOverrides()
 
     icons_elem = overrides_elem.find("icons")
     if icons_elem is None:
-        return {}
+        return IconOverrides()
 
-    active_path = ""
-    for source_elem in icons_elem.findall("source"):
-        visible = get_attr(source_elem, "visible") or ""
-        if _check_visible(visible):
-            active_path = (source_elem.text or "").strip()
-            break
+    source_elem = icons_elem.find("source")
+    source = (source_elem.text or "").strip() if source_elem is not None else ""
+    # an expression carries its own trailing slash, its value is unknown here
+    if source and not source.endswith("/") and not source.startswith("$"):
+        source += "/"
 
-    if active_path and not active_path.endswith("/"):
-        active_path = active_path + "/"
-
-    overrides: dict[str, str] = {}
-
-    if active_path:
-        for png in _list_default_pngs(active_path):
-            overrides[png] = active_path + png
-
+    explicit: dict[str, str] = {}
     for icon_elem in icons_elem.findall("icon"):
         replace = get_attr(icon_elem, "replace")
         value = (icon_elem.text or "").strip()
@@ -359,22 +285,22 @@ def _parse_icon_overrides(root, _picker_sources: list[IconSource]) -> dict[str, 
             log.warning("Icon override missing 'replace' attribute or value, skipping")
             continue
         if "://" in value or value.startswith("/"):
-            overrides[replace] = value
-        elif active_path:
-            overrides[replace] = active_path + value
+            explicit[replace] = value
+        elif source:
+            explicit[replace] = source + value
         else:
             log.warning(
                 f"Icon override '{replace}' has relative path '{value}' but no <source> declared"
             )
 
-    return overrides
+    return IconOverrides(source=source, explicit=explicit)
 
 
 def _parse_menu(
     elem,
     path: str,
     is_submenu: bool = False,
-    icon_overrides: dict[str, str] | None = None,
+    icon_overrides: IconOverrides | None = None,
 ) -> Menu:
     """Parse a menu or submenu element with its items, defaults and allow rules."""
     menu_name = get_attr(elem, "name")
@@ -383,7 +309,7 @@ def _parse_menu(
 
     menu_type = get_attr(elem, "type") or None
     is_widget_submenu = menu_type == "widgets"
-    overrides = icon_overrides or {}
+    overrides = icon_overrides or IconOverrides()
 
     items = []
     for item_elem in elem.findall("item"):
@@ -394,6 +320,7 @@ def _parse_menu(
     allow = _parse_allow(elem.find("allow"))
     container = get_attr(elem, "container") or None
     controltype = get_attr(elem, "controltype") or ""
+    icons = get_bool(elem, "icons", True)
     startid_str = get_attr(elem, "id") or ""
     startid = int(startid_str) if startid_str.isdigit() else 1
     template_only = get_attr(elem, "template_only") or ""
@@ -411,6 +338,7 @@ def _parse_menu(
         is_submenu=is_submenu,
         menu_type=menu_type,
         controltype=controltype,
+        icons=icons,
         startid=startid,
         template_only=template_only,
         build=build,
@@ -425,10 +353,10 @@ def _parse_item(
     menu_name: str,
     path: str,
     is_widget_submenu: bool = False,
-    icon_overrides: dict[str, str] | None = None,
+    icon_overrides: IconOverrides | None = None,
 ) -> MenuItem:
     """Parse an item element: label, icon, actions, properties and protection."""
-    overrides = icon_overrides or {}
+    overrides = icon_overrides or IconOverrides()
     item_name = get_attr(elem, "name")
     if not item_name:
         raise MenuConfigError(path, f"Menu '{menu_name}' has item without 'name'")
@@ -575,37 +503,7 @@ def load_groupings(
 ) -> list[Shortcut | ShortcutGroup | Content | Input]:
     """Load shortcut groupings from menus.xml file.
 
-    Groupings define the available shortcuts for the picker dialog.
-    They are stored inside a <groupings> element within <menus>.
-
-    If menu_id is provided, a <groupings menu="menu_id"> element takes
-    priority over the default (unnamed) <groupings>.
-
-    Note: Consider using load_menus() instead which returns full MenuConfig.
-
-    Schema:
-        <menus>
-          ...
-          <groupings>
-            <group name="..." label="..." icon="..." condition="...">
-              <shortcut name="..." label="..." icon="..." type="..." condition="...">
-                <action>...</action>
-              </shortcut>
-              <shortcut name="..." label="..." browse="videos">
-                <path>videodb://movies/genres/</path>
-              </shortcut>
-              <content source="playlists" target="videos"/>
-              <group name="...">...</group>  <!-- nested -->
-            </group>
-            <!-- Top-level items also supported -->
-            <shortcut name="..." label="...">...</shortcut>
-            <content source="..." target="..."/>
-            <input label="..." type="text" for="action" />
-          </groupings>
-          <groupings menu="powermenu">
-            <!-- Completely replaces default groupings for this menu -->
-          </groupings>
-        </menus>
+    load_menus returns these inside the full MenuConfig; prefer it.
     """
     path = Path(path)
     if not path.exists():
@@ -619,14 +517,10 @@ def _parse_shortcut_groupings(
     root,
     path: str,
     menu_id: str = "",
-    icon_overrides: dict[str, str] | None = None,
+    icon_overrides: IconOverrides | None = None,
 ) -> list[Shortcut | ShortcutGroup | Content | Input]:
-    """Parse groupings from root element.
-
-    Supports all item types at the top level: groups, shortcuts, content, and inputs.
-    If menu_id is provided, a menu-specific <groupings> replaces the default.
-    """
-    overrides = icon_overrides or {}
+    """Parse groupings from root element."""
+    overrides = icon_overrides or IconOverrides()
     default_elem = None
     menu_elem = None
 
@@ -667,10 +561,10 @@ def _parse_shortcut_groupings(
 def _parse_shortcut_group(
     elem,
     path: str,
-    icon_overrides: dict[str, str] | None = None,
+    icon_overrides: IconOverrides | None = None,
 ) -> ShortcutGroup | None:
     """Parse a group element (supports nested groups, shortcuts, content refs, and inputs)."""
-    overrides = icon_overrides or {}
+    overrides = icon_overrides or IconOverrides()
     group_name = get_attr(elem, "name")
     label = get_attr(elem, "label")
     flat = get_bool(elem, "flat")
@@ -723,19 +617,10 @@ def _parse_shortcut_group(
 def _parse_shortcut(
     elem,
     _path: str,
-    icon_overrides: dict[str, str] | None = None,
+    icon_overrides: IconOverrides | None = None,
 ) -> Shortcut | None:
-    """Parse a shortcut element.
-
-    Supports two modes:
-    1. Action mode: <action>ActivateWindow(...)</action>
-    2. Browse mode: browse="videos" with <path>videodb://...</path>
-
-    The visible="..." attribute hides the shortcut from the picker. A
-    <visible> child element is baked into the resulting menu item when the
-    shortcut is picked. Multiple <visible> children are joined with " + ".
-    """
-    overrides = icon_overrides or {}
+    """Parse a shortcut element."""
+    overrides = icon_overrides or IconOverrides()
     shortcut_name = get_attr(elem, "name")
     label = get_attr(elem, "label")
     if not shortcut_name or not label:
@@ -777,12 +662,9 @@ def _parse_shortcut(
     )
 
 
-def _parse_input(elem, icon_overrides: dict[str, str] | None = None) -> Input | None:
-    """Parse an input element.
-
-    Schema: <input label="Custom action" type="text" for="action" />
-    """
-    overrides = icon_overrides or {}
+def _parse_input(elem, icon_overrides: IconOverrides | None = None) -> Input | None:
+    """Parse an input element."""
+    overrides = icon_overrides or IconOverrides()
     label = get_attr(elem, "label")
     if not label:
         log.warning("Input element missing 'label', skipping")

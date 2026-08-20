@@ -15,6 +15,8 @@ import xbmc
 
 from ..log import get_logger
 
+from ..models.menu import IconOverrides
+
 log = get_logger("BrowseProvider")
 
 
@@ -48,10 +50,10 @@ class BrowseItem:
 class BrowseProvider:
     """Lists directory contents via JSON-RPC."""
 
-    def __init__(self, icon_overrides: dict[str, str] | None = None) -> None:
+    def __init__(self, icon_overrides: IconOverrides | None = None) -> None:
         self._icon_overrides = icon_overrides or {}
 
-    def set_icon_overrides(self, overrides: dict[str, str]) -> None:
+    def set_icon_overrides(self, overrides: IconOverrides) -> None:
         """Refresh the override map; setter exists for the module-level singleton."""
         self._icon_overrides = overrides or {}
 
@@ -100,8 +102,7 @@ class BrowseProvider:
             icon = ""
             if include_art:
                 art = file_info.get("art", {})
-                # Skip art.icon - always the generic Kodi default; the fallback
-                # below gives a type-aware one.
+                # art.icon is always the generic Kodi default; the fallback below is type-aware
                 icon = (
                     art.get("poster", "")
                     or art.get("thumb", "")

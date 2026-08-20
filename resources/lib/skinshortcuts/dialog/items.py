@@ -77,16 +77,7 @@ def _browse_path(browse_type: int, title: str, start: str = "") -> str:
 class ItemsMixin:
     """Mixin providing item operations - add, delete, move, label, icon, action.
 
-    This mixin implements:
-    - Add/delete/move items
-    - Set label, icon, action
-    - Toggle disabled state
-    - Restore deleted items
-    - Reset item to defaults
-    - Context menu
-    - File/image browsing with sources
-
-    Requires DialogBaseMixin to be mixed in first.
+    Requires DialogBaseMixin first.
     """
 
     menu_id: str
@@ -193,7 +184,7 @@ class ItemsMixin:
         if widget.source:
             properties["widgetSource"] = widget.source
         if widget.label:
-            properties["widgetLabel"] = resolve_label(widget.label)
+            properties["widgetLabel"] = widget.label
 
         return MenuItem(
             name=widget.name,
@@ -203,11 +194,7 @@ class ItemsMixin:
         )
 
     def _make_unique_item_name(self, base_name: str) -> str:
-        """Generate a unique item name by appending a counter suffix if needed.
-
-        If an item with the same name already exists in the current menu,
-        appends -2, -3, etc. until a unique name is found.
-        """
+        """Generate a unique item name by appending a counter suffix if needed."""
         existing_names = {item.name for item in self.items}
 
         if base_name not in existing_names:
@@ -282,9 +269,7 @@ class ItemsMixin:
                 return
             self.manager.set_label(self.menu_id, item.name, new_label)
             item.label = new_label
-            # widgetLabel is seeded from label for widget submenus
-            # sync on edit so list 211 and widget output match
-            # custom widget menus only exist in working[]
+            # widget submenus seed widgetLabel from label; keep it in sync on edit
             menu = self.manager.working.get(self.menu_id)
             if menu and menu.menu_type == "widgets":
                 self.manager.set_custom_property(self.menu_id, item.name, "widgetLabel", new_label)
@@ -301,8 +286,7 @@ class ItemsMixin:
             return
 
         self._log(f"Opening icon picker, current icon: {item.icon}")
-        # <icons>path</icons> simple mode is parsed as one unlabeled source
-        # treat as direct browse start
+        # simple <icons>path</icons> parses as one unlabeled source; browse straight from it
         sources = self.icon_sources
         default_path = ""
         if len(sources) == 1 and not sources[0].label:
@@ -429,18 +413,7 @@ class ItemsMixin:
         item_properties: dict[str, str] | None = None,
         default_path: str = "",
     ) -> str | None:
-        """Browse for a file using configured sources.
-
-        Args:
-            sources: List of IconSource or BrowseSource objects
-            title: Dialog title
-            browse_type: Kodi browse type (0=folder, 2=image file)
-            item_properties: Current item properties for condition evaluation
-            default_path: Starting path when sources is empty (direct browse mode)
-
-        Returns:
-            Selected path, or None if cancelled
-        """
+        """Browse for a file using configured sources."""
         props = item_properties or {}
 
         visible_sources = []
@@ -553,17 +526,7 @@ class ItemsMixin:
     ) -> None:
         """Unified property setter for menu items.
 
-        All properties (including widget and background) are stored in item.properties.
-        Updates both the manager (for persistence) and local item state (for UI).
-
-        Args:
-            item: The menu item to update
-            name: Property name (e.g., "widget", "background", "widgetStyle")
-            value: Property value, or None/empty string to clear
-            related: Optional dict of related properties to auto-populate
-                     (e.g., {"widgetLabel": "Movies", "widgetPath": "..."})
-            apply_suffix: If True, apply property_suffix to name and related props.
-                         Set to False for shared properties like widget/background.
+        Writes the manager for persistence and the local item for the UI.
         """
         if not self.manager:
             return

@@ -118,8 +118,8 @@ Defines menu structure, shortcut picker groupings, icon sources, and action over
 | Element | Parent | Required Attributes | Optional Attributes | Description |
 |---------|--------|---------------------|---------------------|-------------|
 | `<menus>` | - | - | - | Root element |
-| `<menu>` | menus | `name` | `container`, `type`, `controltype`, `id`, `build`, `template_only`, `action`, `submenuPath` | Main menu definition. `type="widgets"` marks a widget submenu; `controltype` wraps items in `<control type="...">`; `id` sets the start control ID (requires `controltype`); `build="auto"` only emits the menu if its action is assigned; `template_only="submenu"` skips the combined submenu include; `submenuPath="all"` emits the numbered `submenuPath.N` tail for widget submenus under this menu |
-| `<submenu>` | menus | `name` | `container`, `standalone`, `type`, `controltype`, `id` | Submenu definition (built when referenced). `standalone="false"` skips the per-template `skinshortcuts-{name}` include. `type="widgets"` marks a widget submenu; `controltype` wraps items in `<control type="...">`; `id` sets the start control ID (requires `controltype`). `build`, `action` and `template_only` are read but only act on `<menu>` |
+| `<menu>` | menus | `name` | `container`, `type`, `controltype`, `id`, `icons`, `build`, `template_only`, `action`, `submenuPath` | Main menu definition. `type="widgets"` marks a widget submenu; `controltype` wraps items in `<control type="...">`; `id` sets the start control ID (requires `controltype`); `icons="false"` omits `<icon>` from the output; `build="auto"` only emits the menu if its action is assigned; `template_only="submenu"` skips the combined submenu include; `submenuPath="all"` emits the numbered `submenuPath.N` tail for widget submenus under this menu |
+| `<submenu>` | menus | `name` | `container`, `standalone`, `type`, `controltype`, `id`, `icons` | Submenu definition (built when referenced). `standalone="false"` skips the per-template `skinshortcuts-{name}` include. `type="widgets"` marks a widget submenu; `controltype` wraps items in `<control type="...">`; `id` sets the start control ID (requires `controltype`); `icons="false"` omits `<icon>` from the output. `build`, `action` and `template_only` are read but only act on `<menu>` |
 | `<allow>` | menu/submenu | - | `widgets`, `backgrounds`, `submenus` | Feature toggles for dialog |
 | `<defaults>` | menu/submenu | - | `widget`, `background` | Default settings for items |
 | `<action>` | defaults | - | `when`, `condition` | Default action (before/after) |
@@ -146,7 +146,7 @@ Defines menu structure, shortcut picker groupings, icon sources, and action over
 | `<overrides>` | menus | - | - | Action and icon overrides |
 | `<action>` | overrides | `replace` | - | Replacement action |
 | `<icons>` | overrides | - | - | Icon override block (groups `<source>` and `<icon>` overrides) |
-| `<source>` | overrides/icons | - | `visible` | Override source path; first matching used |
+| `<source>` | overrides/icons | - | - | Override source folder; may be a Kodi expression |
 | `<icon>` | overrides/icons | `replace` | - | Replacement icon path (relative to active source) |
 | `<dialogs>` | menus | - | - | Subdialog definitions |
 | `<subdialog>` | dialogs | `buttonID` | `mode`, `menu`, `setfocus`, `suffix` | Subdialog mapping; requires at least one of `mode`, `menu`, or an `<onclose>`. `menu` (without `mode`) opens that menu directly |
