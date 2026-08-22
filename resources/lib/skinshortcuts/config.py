@@ -17,10 +17,12 @@ from .loaders import (
 )
 from .models import Background, Menu, MenuItem, Widget
 from .models.background import BackgroundConfig, BackgroundGroup
-from .models.menu import IconOverrides, ActionOverride, SubDialog
+from .models.menu import IconOverrides, SubDialog
+from .models.override import Override
 from .models.property import PropertySchema
 from .models.template import TemplateSchema
 from .models.views import ViewConfig
+from .migrations import apply_overrides
 from .models.widget import WidgetConfig
 from .userdata import (
     UserData,
@@ -45,6 +47,8 @@ class SkinConfig:
     subdialogs: list[SubDialog] = field(default_factory=list)
     icon_overrides: IconOverrides = field(default_factory=IconOverrides)
     submenu_path_all: bool = False
+    userdata_path: str | None = None
+    migrated: int = 0
 
     @property
     def widgets(self) -> list[Widget]:
@@ -91,6 +95,9 @@ class SkinConfig:
         views = load_views(path / "views.xml")
 
         userdata = load_userdata(userdata_path) if load_user else UserData()
+        migrated = (
+            apply_overrides(userdata, property_schema, widgets, backgrounds) if load_user else 0
+        )
 
         template_map = {m.name: m for m in menu_config.menus if m.is_submenu}
 
@@ -177,6 +184,8 @@ class SkinConfig:
             subdialogs=menu_config.subdialogs,
             icon_overrides=menu_config.icon_overrides,
             submenu_path_all=menu_config.submenu_path_all,
+            userdata_path=userdata_path,
+            migrated=migrated,
         )
 
     def get_widget(self, widget_name: str) -> Widget | None:
@@ -271,26 +280,34 @@ class SkinConfig:
     def derived_item_properties(self, item: MenuItem) -> dict[str, str]:
         """Widget/background sub-properties derivable from the item's assigned names.
 
+        Covers numbered slots, so what the skin owns is recomputed rather than stored.
         Labels stay in $LOCALIZE form so a language change reaches the menu.
         """
         derived: dict[str, str] = {}
 
-        bg_name = item.properties.get("background")
-        if bg_name:
-            bg = self.get_background(bg_name)
-            if bg:
-                derived["backgroundLabel"] = bg.label
-                derived["backgroundPath"] = bg.path
+        for key, name in item.properties.items():
+            if not name:
+                continue
+            base, _, slot = key.partition(".")
+            if slot and not slot.isdigit():
+                continue
+            tail = f".{slot}" if slot else ""
+            if base == "background":
+                bg = self.get_background(name)
+                if bg:
+                    derived[f"backgroundLabel{tail}"] = bg.label
+                    derived[f"backgroundPath{tail}"] = bg.path
+                    derived[f"backgroundType{tail}"] = bg.type_name
+            elif base == "widget":
+                widget = self.get_widget(name)
+                if widget:
+                    derived[f"widgetLabel{tail}"] = widget.label
+                    derived[f"widgetPath{tail}"] = widget.path.replace("{menuitem}", item.name)
+                    derived[f"widgetType{tail}"] = widget.type
+                    derived[f"widgetTarget{tail}"] = widget.target
+                    derived[f"widgetSource{tail}"] = widget.source
 
-        widget_name = item.properties.get("widget")
-        if widget_name:
-            widget = self.get_widget(widget_name)
-            if widget:
-                props = widget.to_properties()
-                props.pop("widget", None)
-                derived.update(props)
-
-        return derived
+        return {k: v for k, v in derived.items() if v}
 
     def resolve_item_properties(self, menu: Menu) -> None:
         """Fill widget/background sub-properties, keeping any the user set."""
@@ -299,12 +316,12 @@ class SkinConfig:
                 item.properties.setdefault(key, value)
 
 
-def _apply_action_overrides(menu: Menu, overrides: list[ActionOverride]) -> None:
+def _apply_action_overrides(menu: Menu, overrides: list[Override]) -> None:
     """Apply action overrides to all items in a menu."""
     if not overrides:
         return
 
-    override_map = {o.replace.lower(): o.action for o in overrides}
+    override_map = {o.replace.lower(): o.value for o in overrides}
 
     for item in menu.items:
         for action in item.actions:
