@@ -71,6 +71,7 @@ from ..models import (
     Action,
     Background,
     BackgroundGroup,
+    BackgroundType,
     Content,
     Input,
     MenuItem,
@@ -185,12 +186,7 @@ def stamp_picker_props(
     item_props: dict[str, str] | None = None,
     content_resolver: Callable[[Content], list] | None = None,
 ) -> None:
-    """Stamp an option's metadata as ListItem properties for DialogSelect layouts.
-
-    name/path/type are uniform across every picker; widget and background also carry
-    their prefixed props (widget*, background*) verbatim from the model. Groups get a
-    path only when a real one exists.
-    """
+    """Stamp an option's metadata as ListItem properties for DialogSelect layouts."""
     if isinstance(item, Widget):
         props = item.to_properties()
         props["path"] = item.path
@@ -217,6 +213,16 @@ def stamp_picker_props(
     props["name"] = item.name
     for key, value in props.items():
         listitem.setProperty(key, value)
+
+
+def _drills_down(item: object) -> bool:
+    """Leaf that opens another dialog rather than committing on click."""
+    if isinstance(item, Background):
+        if item.type in (BackgroundType.BROWSE, BackgroundType.MULTI):
+            return True
+        playlist = (BackgroundType.PLAYLIST, BackgroundType.LIVE_PLAYLIST)
+        return item.type in playlist and not item.path
+    return isinstance(item, (Shortcut, Widget)) and bool(item.browse and item.path)
 
 
 def _content_folder_path(content: Content) -> str:
@@ -358,7 +364,6 @@ class PickersMixin:
         if shortcut.action_play:
             action = self._choose_playlist_action(shortcut)
             return [action] if action else None
-        # Browse mode resolves to a single action
         if shortcut.browse and shortcut.path:
             return [shortcut.get_action()]
         return shortcut.actions if shortcut.actions else None
@@ -479,7 +484,6 @@ class PickersMixin:
         """Widget picker with back navigation over widgets, groups, and content.
 
         Returns the chosen Widget, None if cancelled, False if "None" picked.
-        slot is the widget slot being edited (e.g. "widget", "widget.2").
         """
         current_widget = item_props.get(slot, "")
         items = self._filter_widgets_by_slot(items, slot)
@@ -628,10 +632,7 @@ class PickersMixin:
         return mapped or self._map_target_to_window(content_target)
 
     def _pick_widget_type(self, addon_type: str) -> str | None:
-        """Pick a widget content type for an addon category.
-
-        addon_type is video, audio, executable, pictures or games.
-        """
+        """Pick a widget content type for an addon category."""
         # one possible type, nothing to ask
         if addon_type in ("pictures", "games"):
             return addon_type
@@ -748,8 +749,10 @@ class PickersMixin:
         content_resolver: Callable[[Content], list] | None = None,
         create_folder_group: Callable[[str, list, str, str], Any] | None = None,
         custom_action: tuple[str, str, Callable[[], Any | None]] | None = None,
+        positions: dict[str, int] | None = None,
     ) -> Any | None | Literal[False]:
         """Hierarchical picker with back navigation. False when the user picks "None"."""
+        positions = {} if positions is None else positions
         start = time.monotonic()
         visible_items = self._filter_picker_items(
             items, item_props, leaf_types, group_types, content_resolver, create_folder_group
@@ -763,13 +766,14 @@ class PickersMixin:
             xbmcgui.Dialog().notification(LANGUAGE(32141), LANGUAGE(32064))
             return None
 
-        preselect = -1
         offset = 1 if show_none else 0
+        preselect = positions.get("", -1)
 
-        for i, vis_item in enumerate(visible_items):
-            if hasattr(vis_item, "name") and vis_item.name == current_value:
-                preselect = i + offset
-                break
+        if preselect == -1:
+            for i, vis_item in enumerate(visible_items):
+                if hasattr(vis_item, "name") and vis_item.name == current_value:
+                    preselect = i + offset
+                    break
 
         overrides = self._icon_overrides()
 
@@ -793,14 +797,9 @@ class PickersMixin:
                 if isinstance(vis_item, group_types):
                     label = f"{label} >"
                     icon = vis_item.icon if vis_item.icon else default_group_icon
-                elif (
-                    isinstance(vis_item, (Shortcut, Widget))
-                    and not is_placeholder
-                    and self._is_browsable(vis_item)
-                ):
-                    label = f"{label} >"
-                    icon = vis_item.icon if vis_item.icon else default_leaf_icon
                 else:
+                    if not is_placeholder and _drills_down(vis_item):
+                        label = f"{label} >"
                     icon = vis_item.icon if vis_item.icon else default_leaf_icon
                 listitem = xbmcgui.ListItem(label, offscreen=True)
                 listitem.setArt({"icon": resolve_label(overrides.get(icon, icon))})
@@ -822,7 +821,7 @@ class PickersMixin:
             )
 
             if selected == -1:
-                return None  # Cancelled
+                return None
 
             if show_none and selected == 0:
                 return False
@@ -835,6 +834,7 @@ class PickersMixin:
                 continue
 
             preselect = selected
+            positions[""] = selected
             selected_item = visible_items[selected - offset]
 
             if isinstance(selected_item, Input):
@@ -881,6 +881,8 @@ class PickersMixin:
                 default_group_icon=default_group_icon,
                 content_resolver=content_resolver,
                 create_folder_group=create_folder_group,
+                positions=positions,
+                level=f"/{selected}",
             )
 
             if result is not None:
@@ -897,6 +899,8 @@ class PickersMixin:
         default_group_icon: str,
         content_resolver: Callable[[Content], list] | None = None,
         create_folder_group: Callable[[str, list, str, str], Any] | None = None,
+        positions: dict[str, int],
+        level: str,
     ) -> Any | None:
         """Pick from items within a group with back navigation."""
         start = time.monotonic()
@@ -911,7 +915,7 @@ class PickersMixin:
             return None
 
         overrides = self._icon_overrides()
-        preselect = -1
+        preselect = positions.get(level, -1)
         while True:
             listitems = []
             for vis_item in visible_items:
@@ -926,14 +930,9 @@ class PickersMixin:
                 if isinstance(vis_item, group_types):
                     label = f"{label} >"
                     icon = vis_item.icon if vis_item.icon else default_group_icon
-                elif (
-                    isinstance(vis_item, (Shortcut, Widget))
-                    and not is_placeholder
-                    and self._is_browsable(vis_item)
-                ):
-                    label = f"{label} >"
-                    icon = vis_item.icon if vis_item.icon else default_leaf_icon
                 else:
+                    if not is_placeholder and _drills_down(vis_item):
+                        label = f"{label} >"
                     icon = vis_item.icon if vis_item.icon else default_leaf_icon
                 listitem = xbmcgui.ListItem(label, offscreen=True)
                 listitem.setArt({"icon": resolve_label(overrides.get(icon, icon))})
@@ -949,6 +948,7 @@ class PickersMixin:
                 return None  # Go back
 
             preselect = selected
+            positions[level] = selected
             selected_item = visible_items[selected]
 
             if isinstance(selected_item, Input):
@@ -995,6 +995,8 @@ class PickersMixin:
                 default_group_icon=default_group_icon,
                 content_resolver=content_resolver,
                 create_folder_group=create_folder_group,
+                positions=positions,
+                level=f"{level}/{selected}",
             )
 
             if result is not None:
@@ -1011,11 +1013,7 @@ class PickersMixin:
         parent_label: str = "",
         parent_icon: str = "",
     ) -> list:
-        """Filter and resolve picker items by condition and visibility.
-
-        parent_label and parent_icon are the fallbacks for an addons content
-        placeholder. Raw, so a language switch still moves the committed label.
-        """
+        """Filter and resolve picker items by condition and visibility."""
         visible_items = []
 
         for item in items:
@@ -1038,7 +1036,6 @@ class PickersMixin:
                     if placeholder:
                         placeholder.icon = overrides.get(placeholder.icon, placeholder.icon)
                     if item.folder and (resolved or placeholder) and create_folder_group:
-                        # Wrap in one folder like a <group>, placeholder as its first child.
                         if placeholder:
                             resolved = [placeholder, *resolved]
                         visible_items.append(
@@ -1216,10 +1213,7 @@ class PickersMixin:
         )
 
     def _filter_widgets_by_slot(self, items: list, slot: str) -> list:
-        """Filter widget items by slot. Widgets with no slot show for all slots.
-        Widgets with a specific slot only show when that slot is being edited.
-        Recurses into WidgetGroups.
-        """
+        """Filter widget items by slot. Widgets with no slot show for all slots."""
         from ..models.widget import Widget, WidgetGroup
 
         filtered = []
@@ -1256,7 +1250,10 @@ class PickersMixin:
         return (shortcut.path, window)
 
     def _pick_background(
-        self, item_props: dict[str, str], current_value: str = ""
+        self,
+        item_props: dict[str, str],
+        current_value: str = "",
+        positions: dict[str, int] | None = None,
     ) -> Background | None | Literal[False]:
         """Pick a background from groupings. False when the user picks "None"."""
         if not self.manager:
@@ -1277,4 +1274,5 @@ class PickersMixin:
             default_group_icon="DefaultFolder.png",
             show_none=True,
             current_value=current_value,
+            positions=positions,
         )
