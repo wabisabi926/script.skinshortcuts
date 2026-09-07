@@ -444,12 +444,12 @@ class MenuManager:
         """Set the label for an item."""
         return self._set_item_property(menu_id, item_id, "label", label)
 
-    def set_action(self, menu_id: str, item_id: str, action: str | list[str]) -> bool:
+    def set_action(self, menu_id: str, item_id: str, action: str | list[Action]) -> bool:
         """Set the action(s) for an item."""
         if isinstance(action, str):
-            actions = [action]
+            actions = [Action(action=action)]
         else:
-            actions = action
+            actions = [Action(action=a.action, condition=a.condition) for a in action]
         return self._set_item_property(menu_id, item_id, "actions", actions)
 
     def set_icon(self, menu_id: str, item_id: str, icon: str) -> bool:
@@ -494,18 +494,14 @@ class MenuManager:
         return True
 
     def _set_item_property(
-        self, menu_id: str, item_id: str, prop: str, value: str | bool | list[str] | None
+        self, menu_id: str, item_id: str, prop: str, value: str | bool | list[Action] | None
     ) -> bool:
         """Set a property on an item in working copy."""
         item = self._get_working_item(menu_id, item_id)
         if not item:
             return False
 
-        if prop == "actions" and isinstance(value, list):
-            item.actions = [Action(action=a) for a in value]
-        else:
-            setattr(item, prop, value)
-
+        setattr(item, prop, value)
         item.is_placeholder = False
         self._changed = True
         return True

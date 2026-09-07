@@ -271,7 +271,7 @@ def _browse_placeholder_for_content(
     return Shortcut(
         name=name,
         label=label,
-        actions=[f"ActivateWindow({window},{path},return)"],
+        actions=[Action(action=f"ActivateWindow({window},{path},return)")],
         icon=icon,
     )
 
@@ -325,7 +325,7 @@ class PickersMixin:
         if shortcut:
             if shortcut.source_media:
                 action = self._source_playlist_action(shortcut, item)
-                actions = [action] if action else None
+                actions = [Action(action=action)] if action else None
             else:
                 actions = self._get_shortcut_actions(shortcut)
             if actions is None:
@@ -334,8 +334,9 @@ class PickersMixin:
             result_label = shortcut.label
             self.manager.set_label(self.menu_id, item.name, result_label)
             item.label = result_label
-            self.manager.set_action(self.menu_id, item.name, actions)
-            item.actions = [Action(action=a) for a in actions] if actions else []
+            picked = [Action(action=a.action, condition=a.condition) for a in actions]
+            self.manager.set_action(self.menu_id, item.name, picked)
+            item.actions = picked
 
             if shortcut.icon:
                 self.manager.set_icon(self.menu_id, item.name, shortcut.icon)
@@ -359,13 +360,13 @@ class PickersMixin:
 
             self._refresh_selected_item()
 
-    def _get_shortcut_actions(self, shortcut: Shortcut) -> list[str] | None:
+    def _get_shortcut_actions(self, shortcut: Shortcut) -> list[Action] | None:
         """Get actions from shortcut, showing playlist choice dialog if applicable."""
         if shortcut.action_play:
             action = self._choose_playlist_action(shortcut)
-            return [action] if action else None
+            return [Action(action=action)] if action else None
         if shortcut.browse and shortcut.path:
-            return [shortcut.get_action()]
+            return [Action(action=shortcut.get_action())]
         return shortcut.actions if shortcut.actions else None
 
     def _choose_playlist_action(self, shortcut: Shortcut) -> str | None:
@@ -595,7 +596,7 @@ class PickersMixin:
             shortcut = Shortcut(
                 name=f"dynamic-{content.source}-{len(shortcuts)}",
                 label=item.label,
-                actions=[item.action] if item.action else [],
+                actions=[Action(action=item.action)] if item.action else [],
                 path=item.browse_path,
                 browse=item.browse_window,
                 type=item.label2,
@@ -1092,21 +1093,21 @@ class PickersMixin:
             return Shortcut(
                 name=f"custom-input-{hash(result)}",
                 label=input_item.label,
-                actions=[result],
+                actions=[Action(action=result)],
                 icon=input_item.icon,
             )
         if input_item.for_ == "label":
             return Shortcut(
                 name=f"custom-input-{hash(result)}",
                 label=result,
-                actions=["noop"],
+                actions=[Action(action="noop")],
                 icon=input_item.icon,
             )
         if input_item.for_ == "path":
             return Shortcut(
                 name=f"custom-input-{hash(result)}",
                 label=input_item.label,
-                actions=[f"ActivateWindow(Videos,{result},return)"],
+                actions=[Action(action=f"ActivateWindow(Videos,{result},return)")],
                 icon=input_item.icon,
             )
 
@@ -1207,7 +1208,7 @@ class PickersMixin:
         return Shortcut(
             name=f"browse-{hash(selected_path)}",
             label=label,
-            actions=[f"ActivateWindow({target_window},{selected_path},return)"],
+            actions=[Action(action=f"ActivateWindow({target_window},{selected_path},return)")],
             icon=icon,
             path=selected_path,
             source_media=source_media,

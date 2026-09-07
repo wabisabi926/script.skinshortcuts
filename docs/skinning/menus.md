@@ -522,7 +522,7 @@ For pickers invoked directly via `RunScript`, paired `prop=NAME,value=VALUE` arg
 
 | Element | Description |
 |---------|-------------|
-| `<action>` | Action string (for action mode). Multiple allowed. Supports `primary="true"` to set which action is used for display properties (defaults to the last action) |
+| `<action>` | Action string (for action mode). Multiple allowed. Supports `condition` (see [Conditional Actions](#conditional-actions)) and `primary="true"` to set which action is used for display properties (defaults to the last unconditional action) |
 | `<path>` | Content path (for browse mode) |
 | `<visible>` | Kodi visibility condition baked into the resulting menu item when this shortcut is picked. Multiple elements are joined with ` + ` |
 
@@ -545,7 +545,7 @@ The attribute and child element are independent: the attribute gates picker visi
 </shortcut>
 ```
 
-**Multiple actions:** Shortcuts can have multiple `<action>` elements. All actions are applied when the user picks the shortcut. The `action` and `path` listitem properties use the last action by default.
+**Multiple actions:** Shortcuts can have multiple `<action>` elements. All actions are applied when the user picks the shortcut, each keeping its `condition`. The `action` and `path` listitem properties use the last unconditional action by default.
 
 ```xml
 <shortcut name="movie-hub" label="Movie Hub">

@@ -633,7 +633,7 @@ def _parse_shortcut(
         action_text = (a.text or "").strip()
         if not action_text:
             continue
-        actions.append(action_text)
+        actions.append(Action(action=action_text, condition=get_attr(a, "condition") or ""))
         if get_bool(a, "primary"):
             primary_action = action_text
 
