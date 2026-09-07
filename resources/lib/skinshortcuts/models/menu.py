@@ -115,6 +115,15 @@ class Action:
     condition: str = ""
 
 
+def display_action(actions: list[Action]) -> str:
+    """The action shown in display properties: last unconditional one, else the first."""
+    last = ""
+    for act in actions:
+        if not act.condition:
+            last = act.action
+    return last or (actions[0].action if actions else "")
+
+
 @dataclass
 class IncludeRef:
     """A reference to an include, output as <include>name</include>."""
@@ -151,7 +160,7 @@ class Shortcut:
 
     name: str
     label: str
-    actions: list[str] = field(default_factory=list)
+    actions: list[Action] = field(default_factory=list)
     primary_action: str = ""  # Action marked primary="true", for display props
     path: str = ""
     browse: str = ""
@@ -166,10 +175,10 @@ class Shortcut:
 
     @property
     def action(self) -> str:
-        """Primary action for display. Uses explicit primary, falls back to last action."""
+        """Primary action for display. Uses explicit primary, falls back to last unconditional."""
         if self.primary_action:
             return self.primary_action
-        return self.actions[-1] if self.actions else ""
+        return display_action(self.actions)
 
     def get_action(self) -> str:
         """Get the resolved primary action string."""
@@ -220,11 +229,7 @@ class MenuItem:
     @property
     def action(self) -> str:
         """Primary action for display (last unconditional action)."""
-        last = ""
-        for act in self.actions:
-            if not act.condition:
-                last = act.action
-        return last or (self.actions[0].action if self.actions else "")
+        return display_action(self.actions)
 
     @action.setter
     def action(self, value: str) -> None:
