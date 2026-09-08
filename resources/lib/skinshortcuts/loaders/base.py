@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 from ..exceptions import ConfigError
+from ..log import get_logger, notify
 from ..models.override import Override
+
+log = get_logger("loaders.base")
 
 NO_SUFFIX_PROPERTIES = frozenset({
     "name",
@@ -144,3 +148,26 @@ def parse_name_overrides(root, tag: str) -> list[Override]:
             overrides.append(Override(replace=replace, value=(elem.text or "").strip()))
 
     return overrides
+
+
+def warn_duplicate_names(names: Iterable[str], kind: str, path: str, scope: str = "") -> None:
+    """Warn per repeated name; lookups take one match, so a duplicate is unreachable."""
+    seen: set[str] = set()
+    for name in names:
+        if name in seen:
+            where = f" in {scope}" if scope else ""
+            log.warning(
+                f"{path}: {kind} '{name}' is defined more than once{where}; "
+                "names must be unique"
+            )
+            notify("Duplicate Name", f"{kind} '{name}'{where} (see log)")
+        seen.add(name)
+
+
+def leaf_names(items: Iterable, leaf_type: type, group_type: type) -> Iterator[str]:
+    """Every leaf name in a picker hierarchy, nested groups included."""
+    for item in items:
+        if isinstance(item, group_type):
+            yield from leaf_names(item.items, leaf_type, group_type)
+        elif isinstance(item, leaf_type):
+            yield item.name

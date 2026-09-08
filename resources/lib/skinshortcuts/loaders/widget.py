@@ -14,9 +14,11 @@ from .base import (
     get_bool,
     get_int,
     get_text,
+    leaf_names,
     parse_content,
     parse_name_overrides,
     parse_xml,
+    warn_duplicate_names,
 )
 
 log = get_logger("WidgetLoader")
@@ -46,6 +48,8 @@ def load_widgets(path: str | Path) -> WidgetConfig:
             content = parse_content(child)
             if content:
                 groupings.append(content)
+
+    warn_duplicate_names(leaf_names(groupings, Widget, WidgetGroup), "widget", str(path))
 
     return WidgetConfig(
         widgets=widgets,

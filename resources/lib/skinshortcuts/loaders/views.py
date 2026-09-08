@@ -7,7 +7,7 @@ from pathlib import Path
 from ..constants import DEFAULT_VIEW_PREFIX
 from ..exceptions import ViewConfigError
 from ..models.views import View, ViewConfig, ViewContent
-from .base import get_attr, parse_xml
+from .base import get_attr, parse_xml, warn_duplicate_names
 
 
 def load_views(path: str | Path) -> ViewConfig:
@@ -21,7 +21,10 @@ def load_views(path: str | Path) -> ViewConfig:
 
     prefix = get_attr(root, "prefix") or DEFAULT_VIEW_PREFIX
     views = _parse_views(root, path_str)
+    warn_duplicate_names((v.id for v in views), "view", path_str)
+
     content_rules = _parse_rules(root, path_str, views)
+    warn_duplicate_names((c.name for c in content_rules), "content", path_str)
 
     return ViewConfig(
         views=views,
