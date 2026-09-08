@@ -9,7 +9,7 @@ from pathlib import Path
 from .config import SkinConfig
 from .localize import resolve_label
 from .log import get_logger
-from .models import Action, Menu, MenuItem
+from .models.menu import Action, Menu, MenuItem
 from .playlists import cleanup_orphan_playlists
 from .userdata import (
     MenuItemOverride,

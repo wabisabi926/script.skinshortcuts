@@ -23,7 +23,6 @@ from .constants import (
     WIDGETS_FILE,
 )
 from .log import get_logger
-from .userdata import get_userdata_path
 
 log = get_logger("Hashing")
 
@@ -71,6 +70,8 @@ def generate_config_hashes(shortcuts_path: str | Path) -> dict[str, str | None]:
     for filename in config_files:
         file_path = path / filename
         hashes[filename] = hash_file(file_path)
+
+    from .userdata import get_userdata_path
 
     userdata_path = get_userdata_path()
     if userdata_path:

@@ -73,25 +73,20 @@ def _parse_smart_playlist(filepath: str) -> tuple[str, str]:
         return "", ""
 
 
-from ..loaders import evaluate_condition, load_widgets
+from ..conditions import evaluate_condition
+from ..loaders.widget import load_widgets
 from ..loaders.base import apply_suffix_transform
 from ..localize import LANGUAGE, resolve_label
-from ..models import (
-    Background,
-    BackgroundType,
-    Content,
-    MenuItem,
-    PlaylistSource,
-    Widget,
-    WidgetGroup,
-)
+from ..models.background import Background, BackgroundType, PlaylistSource
+from ..models.menu import Content, MenuItem
+from ..models.widget import Widget, WidgetGroup
 from ..playlists import playlists_base_path, unpack_multipath
-from ..providers import scan_playlist_files
+from ..providers.content import scan_playlist_files
 from .pickers import picker_select
 
 if TYPE_CHECKING:
     from ..manager import MenuManager
-    from ..models import PropertySchema
+    from ..models.property import PropertySchema
 
 
 def _split_suffix(prop_name: str) -> tuple[str, str]:

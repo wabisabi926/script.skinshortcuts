@@ -17,9 +17,7 @@ from .loaders.menu import load_menus
 from .loaders.widget import load_widgets
 from .localize import LANGUAGE, resolve_label
 from .log import get_logger
-from .models import MenuItem
-
-from .models.menu import IconOverrides
+from .models.menu import IconOverrides, MenuItem
 
 log = get_logger("SkinString")
 

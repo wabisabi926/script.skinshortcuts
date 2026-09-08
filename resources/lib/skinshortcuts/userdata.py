@@ -18,9 +18,8 @@ except ImportError:
 
 from .constants import DEFAULT_ICON
 from .log import get_logger
-from .models import Action, Menu, MenuItem
+from .models.menu import Action, IconOverrides, Menu, MenuItem
 
-from .models.menu import IconOverrides
 
 log = get_logger("UserData")
 

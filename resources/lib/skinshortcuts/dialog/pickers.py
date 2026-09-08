@@ -55,7 +55,8 @@ from ..constants import (
     extract_path_from_action,
     extract_window_from_action,
 )
-from ..loaders import evaluate_condition, load_groupings
+from ..conditions import evaluate_condition
+from ..loaders.menu import load_groupings
 from ..localize import LANGUAGE, resolve_label
 from ..log import get_logger
 from ..playlists import (
@@ -67,27 +68,15 @@ from ..playlists import (
     save_playlist,
     unpack_multipath,
 )
-from ..models import (
-    Action,
-    Background,
-    BackgroundGroup,
-    BackgroundType,
-    Content,
-    Input,
-    MenuItem,
-    Shortcut,
-    ShortcutGroup,
-    Widget,
-    WidgetGroup,
-)
-from ..providers import ContentProvider, get_browse_provider, library_node_type
+from ..models.background import Background, BackgroundGroup, BackgroundType
+from ..models.menu import Action, Content, IconOverrides, Input, MenuItem, Shortcut, ShortcutGroup
+from ..models.widget import Widget, WidgetGroup
+from ..providers.browse import get_browse_provider
+from ..providers.content import ContentProvider, library_node_type
 
 if TYPE_CHECKING:
     from ..manager import MenuManager
     from ..providers.content import ResolvedShortcut
-
-
-from ..models.menu import IconOverrides
 
 log = get_logger("Pickers")
 

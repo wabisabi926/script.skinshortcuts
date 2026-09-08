@@ -7,8 +7,8 @@ from pathlib import Path
 from ..constants import TARGET_MAP
 from ..exceptions import WidgetConfigError
 from ..log import get_logger, notify
-from ..models import Content, Widget, WidgetGroup
-from ..models.widget import WidgetConfig
+from ..models.menu import Content
+from ..models.widget import Widget, WidgetConfig, WidgetGroup
 from .base import (
     get_attr,
     get_bool,

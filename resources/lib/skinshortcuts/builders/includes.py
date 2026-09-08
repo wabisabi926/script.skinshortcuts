@@ -9,8 +9,7 @@ from typing import TYPE_CHECKING
 from ..constants import extract_path_from_action
 
 if TYPE_CHECKING:
-    from ..models import Menu, MenuItem
-    from ..models.menu import SubDialog
+    from ..models.menu import Menu, MenuItem, SubDialog
     from ..models.property import PropertySchema
     from ..models.template import TemplateSchema
     from ..models.views import ViewConfig
