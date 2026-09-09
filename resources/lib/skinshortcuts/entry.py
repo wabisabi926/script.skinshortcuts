@@ -16,12 +16,10 @@ try:
 except ImportError:
     IN_KODI = False
 
-from .config import SkinConfig
 from .constants import INCLUDES_FILE, MENUS_FILE, VIEWS_FILE, get_shortcuts_path
 from .hashing import generate_config_hashes, hash_file, needs_rebuild, write_hashes
 from .localize import LANGUAGE
 from .log import get_logger
-from .userdata import get_userdata_path, save_userdata
 
 log = get_logger("Entry")
 
@@ -136,6 +134,8 @@ def build_includes(
 
         log.debug(f"Loading config from: {shortcuts_path}")
 
+        from .config import SkinConfig
+
         config = SkinConfig.load(shortcuts_path)
         log.info(
             f"Loaded {len(config.menus)} menus, "
@@ -163,6 +163,8 @@ def build_includes(
             output_file = Path(out_path) / INCLUDES_FILE
             config.build_includes(str(output_file))
             log.info(f"Generated: {output_file}")
+
+        from .userdata import save_userdata
 
         if config.migrated and save_userdata(config.userdata, config.userdata_path):
             log.info(f"Applied {config.migrated} skin override(s) to userdata")
@@ -268,6 +270,8 @@ def reset_all_menus(shortcuts_path: str | None = None) -> bool:
         LANGUAGE(32191),
     ):
         return False
+
+    from .userdata import get_userdata_path
 
     userdata_path = Path(get_userdata_path())
     if userdata_path.exists():

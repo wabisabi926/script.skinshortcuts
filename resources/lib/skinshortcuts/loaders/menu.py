@@ -28,7 +28,14 @@ from ..models.menu import (
     SubDialog,
 )
 from ..log import get_logger, notify
-from .base import get_attr, get_bool, get_text, parse_content, parse_xml
+from .base import (
+    get_attr,
+    get_bool,
+    get_text,
+    parse_content,
+    parse_xml,
+    warn_duplicate_names,
+)
 
 log = get_logger("MenuLoader")
 
@@ -76,6 +83,8 @@ def _parse_menus(root, path: str, icon_overrides: IconOverrides | None = None) -
     for elem in root.findall("submenu"):
         menu = _parse_menu(elem, path, is_submenu=True, icon_overrides=overrides)
         menus.append(menu)
+
+    warn_duplicate_names((m.name for m in menus), "menu", path)
 
     return menus
 
@@ -315,6 +324,7 @@ def _parse_menu(
     for item_elem in elem.findall("item"):
         item = _parse_item(item_elem, menu_name, path, is_widget_submenu, overrides)
         items.append(item)
+    warn_duplicate_names((i.name for i in items), "item", path, f"menu '{menu_name}'")
 
     defaults = _parse_defaults(elem.find("defaults"))
     allow = _parse_allow(elem.find("allow"))

@@ -6,24 +6,21 @@ import copy
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .builders import IncludesBuilder
-from .loaders import (
-    load_backgrounds,
-    load_menus,
-    load_properties,
-    load_templates,
-    load_views,
-    load_widgets,
-)
-from .models import Background, Menu, MenuItem, Widget
-from .models.background import BackgroundConfig, BackgroundGroup
-from .models.menu import IconOverrides, SubDialog
+from .builders.includes import IncludesBuilder
+from .loaders.background import load_backgrounds
+from .loaders.menu import load_menus
+from .loaders.property import load_properties
+from .loaders.template import load_templates
+from .loaders.views import load_views
+from .loaders.widget import load_widgets
+from .migrations import apply_overrides
+from .models.background import Background, BackgroundConfig, BackgroundGroup
+from .models.menu import IconOverrides, Menu, MenuItem, SubDialog
 from .models.override import Override
 from .models.property import PropertySchema
 from .models.template import TemplateSchema
 from .models.views import ViewConfig
-from .migrations import apply_overrides
-from .models.widget import WidgetConfig
+from .models.widget import Widget, WidgetConfig
 from .userdata import (
     UserData,
     _create_item_from_override,

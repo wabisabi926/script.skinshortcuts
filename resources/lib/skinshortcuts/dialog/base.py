@@ -13,19 +13,20 @@ except ImportError:
     IN_KODI = False
 
 from ..constants import extract_path_from_action, get_shortcuts_path
-from ..loaders import evaluate_condition, load_menus, load_properties
+from ..conditions import evaluate_condition
+from ..loaders.menu import load_menus
+from ..loaders.property import load_properties
 from ..loaders.base import apply_suffix_transform
 from ..localize import resolve_label
 from ..log import get_logger
 from ..manager import MenuManager
-from ..models import MenuItem, PropertySchema
-from ..models.menu import ContextMenu
+from ..models.menu import ContextMenu, MenuItem
+from ..models.property import PropertySchema
 
 _log = get_logger("Dialog")
 
 if TYPE_CHECKING:
-    from ..models import IconSource
-    from ..models.menu import SubDialog
+    from ..models.menu import IconSource, SubDialog
 
 CONTROL_LIST = 211
 CONTROL_SUBDIALOG_LIST = 212

@@ -20,7 +20,7 @@ from ..models.template import BuildMode, TemplateProperty
 log = get_logger("TemplateBuilder")
 
 if TYPE_CHECKING:
-    from ..models import Menu, MenuItem
+    from ..models.menu import Menu, MenuItem
     from ..models.property import PropertySchema
     from ..models.template import (
         ItemsDefinition,

@@ -11,15 +11,15 @@ try:
 except ImportError:
     IN_KODI = False
 
-from ..loaders import evaluate_condition
+from ..conditions import evaluate_condition
 from ..localize import LANGUAGE
-from ..models import MenuItem
+from ..models.menu import MenuItem
 
 if TYPE_CHECKING:
     from ..manager import MenuManager
-    from ..models import IconSource, PropertySchema
-    from ..models.menu import ContextMenu, SubDialog
-    from ..providers import ContentProvider
+    from ..models.menu import ContextMenu, IconSource, SubDialog
+    from ..models.property import PropertySchema
+    from ..providers.content import ContentProvider
 
 
 class SubdialogsMixin:

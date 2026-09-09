@@ -16,9 +16,9 @@ except ImportError:
 from ..conditions import evaluate_condition
 from ..loaders.base import apply_suffix_transform
 from ..localize import LANGUAGE, resolve_label
-from ..models import Action, BrowseSource, IconSource, MenuItem
-from ..models.menu import ContextMenu, ContextMenuButton
-from ..providers import normalize_image
+from ..models.background import BrowseSource
+from ..models.menu import Action, ContextMenu, ContextMenuButton, IconSource, MenuItem
+from ..providers.browse import normalize_image
 from .base import (
     CONTROL_ADD,
     CONTROL_CHOOSE_SHORTCUT,
@@ -38,7 +38,7 @@ from .properties import BUTTON_ONLY_TYPES
 
 if TYPE_CHECKING:
     from ..manager import MenuManager
-    from ..models import PropertySchema
+    from ..models.property import PropertySchema
     from ..models.menu import SubDialog
 
 CONTEXT_DEFAULT_BUTTONS = (
@@ -94,7 +94,8 @@ class ItemsMixin:
     if TYPE_CHECKING:
         from typing import Literal
 
-        from ..models import Content, Widget, WidgetGroup
+        from ..models.menu import Content
+        from ..models.widget import Widget, WidgetGroup
 
         def _get_selected_index(self) -> int: ...
         def _get_selected_item(self) -> MenuItem | None: ...
@@ -144,7 +145,7 @@ class ItemsMixin:
         """Pick a widget when adding to a widget submenu."""
         from pathlib import Path
 
-        from ..loaders import load_widgets
+        from ..loaders.widget import load_widgets
 
         widgets_path = Path(self.shortcuts_path) / "widgets.xml"
         widget_config = load_widgets(widgets_path)
@@ -163,7 +164,7 @@ class ItemsMixin:
 
     def _create_item_from_widget(self, widget) -> MenuItem:
         """Create a MenuItem from a Widget using the standard mapping."""
-        from ..models import Widget
+        from ..models.widget import Widget
 
         if not isinstance(widget, Widget):
             raise TypeError("Expected Widget instance")
