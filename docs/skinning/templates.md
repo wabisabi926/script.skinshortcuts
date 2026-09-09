@@ -942,6 +942,8 @@ If your template outputs `<description>Automatically generated - no menu items m
 
 To iterate over all menu items without conditions, omit the `<condition>` element from your items template.
 
+> **See also:** [When No Item Matches](#when-no-item-matches) for what happens to the template's variables.
+
 ---
 
 ## Property Groups
@@ -1170,6 +1172,18 @@ Reference in template:
 | `name` | Variable name |
 | `condition` | Build only when condition matches item |
 | `output` | Output name pattern (supports `$PROPERTY[]`) |
+
+### When No Item Matches
+
+A template builds its variables once per menu item that passes its conditions. When no item matches, a variable with a fixed name is still defined, holding one empty value:
+
+```xml
+<variable name="PlaylistBackgroundFanart">
+  <value />
+</variable>
+```
+
+A variable whose `output` name contains `$PROPERTY[...]` is one per item, so there is no name to define. Reference those only from the template that builds them.
 
 ### Value Attributes
 
