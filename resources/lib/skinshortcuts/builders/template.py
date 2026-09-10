@@ -113,6 +113,8 @@ class TemplateBuilder:
         for submenu_tpl in self.schema.submenus:
             self._build_submenu_template(submenu_tpl, include_map)
 
+        self._add_placeholder_variables(variable_map)
+
         for var_elem in variable_map.values():
             root.append(var_elem)
 
@@ -654,7 +656,7 @@ class TemplateBuilder:
             return None
         var_elem = copy.deepcopy(var_def.content)
 
-        raw_name = var_def.output or var_elem.get("name") or var_def.name
+        raw_name = self._variable_output_name(var_def)
         if parent_item is not None:
             output_name = self._substitute_text(
                 raw_name, context, item, None, parent_context, parent_item
@@ -821,6 +823,57 @@ class TemplateBuilder:
             var_elem = self._build_variable(var_def, context, item, parent_context, parent_item)
             if var_elem is not None:
                 self._add_variable(var_elem, variable_map)
+
+    def _variable_output_name(self, var_def: VariableDefinition) -> str:
+        """The name a variable declares, before any per-item substitution."""
+        content_name = var_def.content.get("name") if var_def.content is not None else None
+        return var_def.output or content_name or var_def.name
+
+    def _fixed_variable_name(self, var_def: VariableDefinition) -> str:
+        """That declared name when it is fixed, empty when it varies per item."""
+        name = self._variable_output_name(var_def)
+        return "" if "$" in name else name
+
+    def _collect_group_variables(
+        self, group_name: str, names: set[str], seen: set[str]
+    ) -> None:
+        """Collect the fixed variable names a variableGroup reaches, nested groups included."""
+        if group_name in seen:
+            return
+        seen.add(group_name)
+
+        var_group = self.schema.get_variable_group(group_name)
+        if not var_group:
+            return
+
+        for nested_ref in var_group.group_refs:
+            self._collect_group_variables(nested_ref.name, names, seen)
+
+        for var_ref in var_group.references:
+            var_def = self.schema.get_variable_definition(var_ref.name)
+            if var_def:
+                name = self._fixed_variable_name(var_def)
+                if name:
+                    names.add(name)
+
+    def _add_placeholder_variables(self, variable_map: dict[str, ET.Element]) -> None:
+        """Add a placeholder per declared variable no item built, so a skin naming one resolves."""
+        names: set[str] = set()
+        seen: set[str] = set()
+
+        for template in self.schema.templates:
+            for var_def in template.variables:
+                name = self._fixed_variable_name(var_def)
+                if name:
+                    names.add(name)
+            for group_ref in template.variable_groups:
+                self._collect_group_variables(group_ref.name, names, seen)
+
+        for name in sorted(names - set(variable_map)):
+            placeholder = ET.Element("variable")
+            placeholder.set("name", name)
+            ET.SubElement(placeholder, "value")
+            variable_map[name] = placeholder
 
     def _substitute_variable_content(
         self,
