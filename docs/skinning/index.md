@@ -20,7 +20,7 @@ Integration guide for Skin Shortcuts.
 | Document | Description |
 |----------|-------------|
 | [Menus](menus.md) | Menu structure, items, submenus, shortcut picker |
-| [Widgets](widgets.md) | Widget definitions and picker groupings |
+| [Widgets](widgets.md) | Widget definitions, picker groupings, per-item widget lists |
 | [Backgrounds](backgrounds.md) | Background types and sources |
 | [Properties](properties.md) | Custom property schemas and button mappings |
 | [Templates](templates.md) | Output template system for include generation |

@@ -17,6 +17,7 @@ This guide covers all changes needed to migrate a v2 skin to v3.
 * [templates.xml Migration](#templatesxml-migration)
 * [RunScript Parameters](#runscript-parameters)
 * [Management Dialog Controls](#management-dialog-controls)
+* [Numbered Submenus](#numbered-submenus)
 * [Window Properties](#window-properties)
 * [Property Name Changes](#property-name-changes)
 * [User Data Format](#user-data-format)
@@ -878,8 +879,61 @@ Widget and background pickers in v3 are configured via button mappings in proper
 | 111     | Available shortcuts list |
 | 308     | Restore shortcuts        |
 | 404     | Set custom property      |
+| 406-410 | Edit submenu levels 1-5  |
 
-Remove these controls from your dialog XML.
+Remove these controls from your dialog XML. For 406-410, see [Numbered Submenus](#numbered-submenus).
+
+***
+
+## Numbered Submenus
+
+In v2 each main menu item held five extra lists, `{labelID}.1` through `.5`, edited with buttons
+406 to 410 and written out as `skinshortcuts-submenu-1` through `-5`. Skins used them for extra
+rows of shortcuts, most often a row of widgets per item.
+
+v3 keeps one submenu per item, the one button 405 edits. Extra lists are still there, through
+templates instead of numbered includes:
+
+| v2                                    | v3                                                       |
+| ------------------------------------- | -------------------------------------------------------- |
+| `{labelID}.1` group                   | `{item name}.{suffix}` submenu, reached by an items template |
+| Buttons 406-410                       | One `<subdialog>` per list, any button ID you choose      |
+| `skinshortcuts-submenu-1` include     | Controls the items template generates                     |
+| Five levels                           | As many lists as you define items templates for           |
+
+```xml
+<!-- menus.xml: the list, plus the button that opens it -->
+<submenu name="movies.widgets" type="widgets">
+  <item name="movies-recent">
+    <label>Recently Added</label>
+    <property name="widgetPath">videodb://recentlyaddedmovies/</property>
+    <property name="widgetType">movies</property>
+  </item>
+</submenu>
+
+<dialogs>
+  <subdialog buttonID="800" menu="{item}.widgets" />
+</dialogs>
+```
+
+```xml
+<!-- templates.xml: what each entry in that list becomes -->
+<template items="widget" source="widgets">
+  <controls>
+    <include content="PanelWidget">
+      <param name="path">$PROPERTY[widgetPath]</param>
+    </include>
+  </controls>
+</template>
+```
+
+The suffix is a name, not a level. Your v2 names still work, `movies.1` with `source="1"` reaches
+the same list. Do not point the parent item at it with `submenu`, that breaks the lookup. See
+[Submenu Naming Convention](skinning/templates.md#submenu-naming-convention) and
+[Per-Item Widget Submenu](skinning/widgets.md#per-item-widget-submenu).
+
+Such a list is a [widget menu](skinning/widgets.md#widget-menus): add opens the widget picker, so
+entries carry `widgetPath` where the v2 group carried an action.
 
 ***
 
@@ -963,7 +1017,7 @@ User data is stored in:
 ### Required Steps
 
 - [ ] Create `shortcuts/menus.xml`
-  
+
   - [ ] Define all menus (`<menu>` elements)
   - [ ] Define all submenus (`<submenu>` elements)
   - [ ] Create groupings for shortcut picker
@@ -972,7 +1026,7 @@ User data is stored in:
   - [ ] Configure action overrides if needed
 
 - [ ] Update dialog XML
-  
+
   - [ ] Remove controls 101-103 (shortcut type selector)
   - [ ] Remove control 111 (available shortcuts list)
   - [ ] Remove control 308 (restore shortcuts)
@@ -983,31 +1037,31 @@ User data is stored in:
   - [ ] Set up `<subdialog>` elements in menus.xml if using multiple widget slots
 
 - [ ] Update RunScript calls
-  
+
   - [ ] Change `group=` to `menu=` in all RunScript parameters
 
 ### Optional Steps
 
 - [ ] Create `shortcuts/widgets.xml`
-  
+
   - [ ] Define widget groups
   - [ ] Define individual widgets
   - [ ] Add dynamic content sources
 
 - [ ] Create `shortcuts/backgrounds.xml`
-  
+
   - [ ] Define background types
   - [ ] Set up browse sources
   - [ ] Configure groups
 
 - [ ] Create `shortcuts/properties.xml`
-  
+
   - [ ] Define property schemas
   - [ ] Set up button mappings
   - [ ] Configure fallback values
 
 - [ ] Create `shortcuts/templates.xml` (if using custom includes)
-  
+
   - [ ] Rewrite templates for v3 syntax
   - [ ] Set up expressions, presets, property groups
   - [ ] Configure multi-output if needed

@@ -125,6 +125,10 @@ Control 212 is a single-item list that mirrors the currently selected item from 
 | `401` | Choose shortcut from groupings |
 | `405` | Edit submenu |
 
+Button 405 edits the submenu the item links with `submenu="..."`. A per-item widget list opens from
+a `<subdialog>` instead, where adding offers widgets rather than shortcuts. See
+[Per-Item Widget Submenu](widgets.md#per-item-widget-submenu).
+
 ### Custom Buttons
 
 All property buttons (widget, background, custom options) are configured in `properties.xml`. Common conventions:
@@ -190,6 +194,9 @@ These properties are set on **both the dialog window and the Home window**. Read
 |----------|-------------|
 | `skinshortcuts-dialog` | Current subdialog mode (empty for main) |
 | `skinshortcuts-suffix` | Current property suffix (e.g., `.2`) |
+
+A `<subdialog>` with `menu` and no `mode` has no mode to carry, so `skinshortcuts-dialog` reads
+`customwidget` while that menu is open.
 
 ### Usage
 

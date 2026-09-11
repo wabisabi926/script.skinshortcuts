@@ -119,6 +119,11 @@ Submenus use the same structure as `<menu>` (including all attributes). The only
 
 The `type="widgets"` attribute is commonly used on submenus for per-item widget lists. See [Widget Menus](widgets.md#widget-menus).
 
+An item takes one submenu, the one button 405 edits. Further lists for the same item are widget
+lists: a submenu named `{item name}.{suffix}` that an items template iterates, reached by name
+rather than the `submenu` attribute. Setting both stops the template finding it. See
+[Per-Item Widget Submenu](widgets.md#per-item-widget-submenu).
+
 ### Attributes
 
 In addition to the attributes shared with `<menu>`:
@@ -768,6 +773,15 @@ Define subdialogs triggered by button clicks. Used for multi-widget support.
 ```
 
 This opens the custom widget menu for slot 2 immediately when button 850 is clicked, without changing dialog mode or spawning an intermediate subdialog.
+
+`{item}` works the same way, opening one of that item's widget lists:
+
+```xml
+<subdialog buttonID="800" menu="{item}.widgets" />
+```
+
+Adding `mode` alongside `menu` is not a direct open: the subdialog opens in that mode and `menu` is
+ignored. Pair the mode with an `<onclose action="menu">` instead.
 
 ### `<onclose>` Attributes
 
