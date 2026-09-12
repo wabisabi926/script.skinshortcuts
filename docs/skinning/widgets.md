@@ -485,7 +485,16 @@ A widget submenu tied to a parent menu item via the subdialog system:
 
 Use with [items templates](templates.md#dynamic-widgets-pattern) to iterate over the widget items and generate controls per widget.
 
-The parent menu item also carries `submenuPath` — the first widget path of this submenu — so the item can drive visibility or detect "no widgets" directly, without a hidden counter container. To also emit the full numbered list, set `submenuPath="all"` on the parent `<menu>` (or globally with a `<submenuPath>all</submenuPath>` element under `<menus>` for every menu):
+`movies.widgets` is the parent item's name, a dot, then the suffix the items template names in
+`source`. The suffix is yours to pick, so `movies.1` works the same, and a second suffix gives a
+second list. Do not also set `submenu="movies.widgets"` on the parent item, that gives it a private
+copy and the template stops finding it. See
+[Submenu Naming Convention](templates.md#submenu-naming-convention).
+
+The items here are what your skin ships. They need no entry in widgets.xml; that is what the picker
+offers when a user adds one.
+
+The parent menu item also carries `submenuPath`, the first widget path of this submenu, so the item can drive visibility or detect "no widgets" directly, without a hidden counter container. To also emit the full numbered list, set `submenuPath="all"` on the parent `<menu>` (or globally with a `<submenuPath>all</submenuPath>` element under `<menus>` for every menu):
 
 ```xml
 <menu name="mainmenu" submenuPath="all">...</menu>
@@ -499,7 +508,8 @@ See [Submenu Widget Path](builtin-properties.md#submenu-widget-path) for the pro
 
 In widget mode (`type="widgets"`):
 
-- **Add** opens the widget picker (from `widgets.xml`) instead of the shortcut picker
+- **Add** opens the widget picker (from `widgets.xml`) instead of the shortcut picker. With no
+  widgets defined there is nothing to offer and the button looks dead
 - **Item label and icon** are set from the selected widget
 - The window property `skinshortcuts-menutype` is set to `widgets`
 

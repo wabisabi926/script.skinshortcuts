@@ -737,8 +737,19 @@ The submenu is looked up as `{parent_item.name}.{source}`:
 | Parent Item | Source | Submenu Looked Up |
 |-------------|--------|-------------------|
 | `movies` | `widgets` | `movies.widgets` |
+| `movies` | `1` | `movies.1` |
 | `tvshows` | `hubWidgets` | `tvshows.hubWidgets` |
 | `music` | `widgets` | `music.widgets` |
+
+The suffix is a name you choose, not a slot number. A second items template with a different
+`source` gives the same item a second list, each with its own insert marker.
+
+Items a user adds work the same way: a new `user-a1b2c3` gets `user-a1b2c3.widgets`, with no
+`<submenu>` to declare.
+
+Do not also point the parent item at it with `submenu="movies.widgets"`. That gives the item a
+private copy, the shared name is gone, and the template produces nothing. Use `submenu` for the one
+submenu button 405 edits, `source` for lists an items template iterates.
 
 ### Property Contexts
 
@@ -892,6 +903,10 @@ This pattern allows unlimited, reorderable widgets per menu item using subdialog
 2. A subdialog opens with `action="menu" menu="{item}.widgets"`
 3. User adds/removes/reorders items in that submenu (each item = one widget)
 4. The items template iterates over those submenu items to generate widget controls
+
+The submenu is a [widget menu](widgets.md#widget-menus): adding there opens the widget picker and
+the new item carries `widgetPath`, not an action. Ship your own set as items of that submenu with
+the same properties; they need no entry in widgets.xml, which is only what the picker offers.
 
 **menus.xml configuration:**
 
