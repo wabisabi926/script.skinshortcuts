@@ -20,10 +20,7 @@ except ImportError:
 
 
 def _resolve_playlist_path(filepath: str) -> str | None:
-    """Resolve a playlist path to an actual readable file path.
-
-    special://videoplaylists/ is a multipath over the video and mixed dirs.
-    """
+    """Resolve a playlist path to a readable file; special://videoplaylists/ is a multipath."""
     import xbmcvfs
 
     translated = xbmcvfs.translatePath(filepath)
@@ -108,10 +105,7 @@ BUTTON_ONLY_TYPES = ("widget", "background", "toggle", "text", "number")
 
 
 class PropertiesMixin:
-    """Mixin providing property management - widget, background, toggle, options.
-
-    Requires DialogBaseMixin and PickersMixin first.
-    """
+    """Mixin providing property management - widget, background, toggle, options."""
 
     menu_id: str
     shortcuts_path: str
@@ -242,10 +236,7 @@ class PropertiesMixin:
         return self._handle_options_property(prop, item, button, prop_name)
 
     def _handle_widget_property(self, prop, item: MenuItem, prop_name: str) -> Widget | None:
-        """Handle a widget-type property.
-
-        Custom list sets widgetType=custom, which an onclose opens the editor for.
-        """
+        """Handle a widget-type property; picking custom sets widgetType=custom for an onclose."""
         if self.manager is None:
             return None
         menu = self.manager.config.get_menu(self.menu_id)
@@ -334,6 +325,9 @@ class PropertiesMixin:
             f"{base}Type{suffix}": widget.type or "",
             f"{base}Target{suffix}": widget.target or "",
             f"{base}Source{suffix}": widget.source or "",
+            f"{base}Limit{suffix}": str(widget.limit or ""),
+            f"{base}SortBy{suffix}": widget.sort_by or "",
+            f"{base}SortOrder{suffix}": widget.sort_order or "",
         }
 
         self._set_item_property(item, prefix, widget.name, related, apply_suffix=False)
@@ -353,6 +347,9 @@ class PropertiesMixin:
             f"{base}Type{suffix}": None,
             f"{base}Target{suffix}": None,
             f"{base}Source{suffix}": None,
+            f"{base}Limit{suffix}": None,
+            f"{base}SortBy{suffix}": None,
+            f"{base}SortOrder{suffix}": None,
         }
 
         self._set_item_property(item, prefix, "", related, apply_suffix=False)
@@ -497,7 +494,7 @@ class PropertiesMixin:
         label_prefix: str = "",
         current_path: str = "",
     ) -> tuple[str, str, str] | None:
-        """Show picker for available playlists."""
+        """Pick a playlist from the available sources."""
         if not sources:
             base = playlists_base_path()
             sources = [
