@@ -7,10 +7,10 @@ import re
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
 
-from ..conditions import evaluate_condition
+from ..conditions import NO_SUFFIX_PROPERTIES, evaluate_condition, lookup, suffix_condition
 from ..constants import extract_path_from_action
 from ..expressions import process_if_expressions, process_math_expressions
-from ..loaders.base import NO_SUFFIX_PROPERTIES, apply_suffix_to_from, apply_suffix_transform
+from ..loaders.base import apply_suffix_to_from
 from ..log import get_logger, notify
 from ..models.template import BuildMode, TemplateProperty
 
@@ -244,7 +244,7 @@ class TemplateBuilder:
 
         for prop in submenu_tpl.properties:
             if prop.from_source:
-                value = context.get(prop.from_source, "")
+                value = lookup(prop.from_source, context) or ""
             elif prop.value:
                 value = prop.value
                 if "$PARENT[" in value and parent_item is not None:
@@ -306,7 +306,7 @@ class TemplateBuilder:
     def _substitute_submenu_text(self, text: str, context: dict[str, str]) -> str:
         """Substitute $PROPERTY[...] and $EXP[...] in submenu template text."""
         def replace_property(m: re.Match[str]) -> str:
-            return context.get(m.group(1), "")
+            return lookup(m.group(1), context) or ""
 
         def replace_exp(m: re.Match[str]) -> str:
             exp_name = m.group(1)
@@ -565,7 +565,7 @@ class TemplateBuilder:
             if condition:
                 condition = self._expand_expressions(condition)
                 if effective_suffix:
-                    condition = self._apply_suffix_to_condition(condition, effective_suffix)
+                    condition = suffix_condition(condition, effective_suffix)
                 if not self._eval_condition(condition, item, context):
                     continue
             self._apply_preset(ref, item, context, effective_suffix)
@@ -576,7 +576,7 @@ class TemplateBuilder:
             if condition:
                 condition = self._expand_expressions(condition)
                 if effective_suffix:
-                    condition = self._apply_suffix_to_condition(condition, effective_suffix)
+                    condition = suffix_condition(condition, effective_suffix)
                 if not self._eval_condition(condition, item, context):
                     continue
             self._apply_preset_group(ref, item, context, effective_suffix)
@@ -587,7 +587,7 @@ class TemplateBuilder:
             if condition:
                 condition = self._expand_expressions(condition)
                 if effective_suffix:
-                    condition = self._apply_suffix_to_condition(condition, effective_suffix)
+                    condition = suffix_condition(condition, effective_suffix)
                 if not self._eval_condition(condition, item, context):
                     continue
             prop_group = self.schema.get_property_group(ref.name)
@@ -760,11 +760,10 @@ class TemplateBuilder:
 
         for var_ref in var_group.references:
             condition = var_ref.condition
-            if suffix and condition:
-                condition = apply_suffix_transform(condition, suffix)
-
             if condition:
                 condition = self._expand_expressions(condition)
+                if suffix:
+                    condition = suffix_condition(condition, suffix)
                 if not self._eval_condition(condition, item, context):
                     continue
 
@@ -865,7 +864,7 @@ class TemplateBuilder:
         if prop.condition:
             condition = self._expand_expressions(prop.condition)
             if suffix:
-                condition = self._apply_suffix_to_condition(condition, suffix)
+                condition = suffix_condition(condition, suffix)
             if not self._eval_condition(condition, item, context):
                 return None
 
@@ -889,12 +888,7 @@ class TemplateBuilder:
         """Substitute $PROPERTY[...] in text during context building."""
 
         def replace_property(match: re.Match) -> str:
-            name = match.group(1)
-            if name in context:
-                return context[name]
-            if name in item.properties:
-                return item.properties[name]
-            return ""
+            return lookup(match.group(1), context, item.properties) or ""
 
         return _PROPERTY_PATTERN.sub(replace_property, text)
 
@@ -908,15 +902,11 @@ class TemplateBuilder:
 
         def replace_parent(match: re.Match) -> str:
             name = match.group(1)
-            if parent_context and name in parent_context:
-                return parent_context[name]
-            if name == "label":
+            if name == "label" and not (parent_context and name in parent_context):
                 return parent_item.label
-            if name == "name":
+            if name == "name" and not (parent_context and name in parent_context):
                 return parent_item.name
-            if name in parent_item.properties:
-                return parent_item.properties[name]
-            return ""
+            return lookup(name, parent_context or {}, parent_item.properties) or ""
 
         return _PARENT_PATTERN.sub(replace_parent, text)
 
@@ -932,7 +922,7 @@ class TemplateBuilder:
             if val.condition:
                 condition = self._expand_expressions(val.condition)
                 if suffix:
-                    condition = self._apply_suffix_to_condition(condition, suffix)
+                    condition = suffix_condition(condition, suffix)
                 if not self._eval_condition(condition, item, context):
                     continue
 
@@ -952,9 +942,7 @@ class TemplateBuilder:
         """Get value from a source (built-in or item property)."""
         if source in ("index", "name", "menu", "id", "idprefix"):
             return context.get(source, "")
-        if source in context:
-            return context[source]
-        return item.properties.get(source, "")
+        return lookup(source, context, item.properties) or ""
 
     def _apply_property_group(
         self,
@@ -973,7 +961,7 @@ class TemplateBuilder:
                     from_source = apply_suffix_to_from(from_source, suffix)
                 if condition:
                     condition = self._expand_expressions(condition)
-                    condition = self._apply_suffix_to_condition(condition, suffix)
+                    condition = suffix_condition(condition, suffix)
 
             modified_prop = TemplateProperty(
                 name=prop.name,
@@ -1008,7 +996,7 @@ class TemplateBuilder:
             if row.condition:
                 condition = self._expand_expressions(row.condition)
                 if suffix:
-                    condition = self._apply_suffix_to_condition(condition, suffix)
+                    condition = suffix_condition(condition, suffix)
                 if self._eval_condition(condition, item, context):
                     for attr_name, attr_value in row.values.items():
                         if attr_name not in context:
@@ -1038,7 +1026,7 @@ class TemplateBuilder:
             if child.condition:
                 condition = self._expand_expressions(child.condition)
                 if suffix:
-                    condition = self._apply_suffix_to_condition(condition, suffix)
+                    condition = suffix_condition(condition, suffix)
                 if not self._eval_condition(condition, item, context):
                     continue
 
@@ -1069,7 +1057,7 @@ class TemplateBuilder:
             if row.condition:
                 condition = self._expand_expressions(row.condition)
                 if suffix:
-                    condition = self._apply_suffix_to_condition(condition, suffix)
+                    condition = suffix_condition(condition, suffix)
                 if self._eval_condition(condition, item, context):
                     return row.values
             else:
@@ -1101,59 +1089,15 @@ class TemplateBuilder:
 
                 for rule in fallback.rules:
                     if rule.condition:
-                        condition = rule.condition
+                        condition = self._expand_expressions(rule.condition)
                         if suffix:
-                            condition = apply_suffix_transform(condition, suffix)
+                            condition = suffix_condition(condition, suffix)
                         if self._eval_condition(condition, item, context):
                             context[suffixed_prop] = rule.value
                             break
                     else:
                         context[suffixed_prop] = rule.value
                         break
-
-    def _apply_suffix_to_condition(self, condition: str, suffix: str) -> str:
-        """Apply suffix to property names in a condition."""
-        nosuffix_pattern = re.compile(r"\{NOSUFFIX:([^}]+)\}")
-        preserved: list[str] = []
-
-        def extract_nosuffix(match: re.Match) -> str:
-            preserved.append(match.group(1))
-            return f"__NOSUFFIX_{len(preserved) - 1}__"
-
-        condition = nosuffix_pattern.sub(extract_nosuffix, condition)
-
-        separators = {"=", "~", "|", "+", "[", "]", "!"}
-        reserved = ("index", "name", "menu", "id", "idprefix", "suffix")
-
-        result = []
-        # After = or ~ we are consuming a value list; `|` continues the list,
-        # but + [ ] ! start a new condition term with a fresh property name.
-        in_value = False
-        parts = re.split(r"([=~|+\[\]!])", condition)
-        for part in parts:
-            part = part.strip()
-            if not part:
-                continue
-            if part in separators:
-                if part in ("=", "~"):
-                    in_value = True
-                elif part in ("+", "[", "]", "!"):
-                    in_value = False
-                result.append(part)
-                continue
-            if part in reserved or part.startswith("__NOSUFFIX_"):
-                result.append(part)
-                continue
-            if not in_value:
-                part = f"{part}{suffix}"
-            result.append(part)
-
-        transformed = "".join(result)
-
-        for i, content in enumerate(preserved):
-            transformed = transformed.replace(f"__NOSUFFIX_{i}__", content)
-
-        return transformed
 
     def _strip_nosuffix_markers(self, condition: str) -> str:
         """Strip {NOSUFFIX:...} markers, keeping only the content."""
@@ -1164,7 +1108,7 @@ class TemplateBuilder:
         for cond in conditions:
             expanded = self._expand_expressions(cond)
             if suffix:
-                expanded = self._apply_suffix_to_condition(expanded, suffix)
+                expanded = suffix_condition(expanded, suffix)
             if not self._eval_condition(expanded, item, {}):
                 return False
         return True
@@ -1635,25 +1579,16 @@ class TemplateBuilder:
 
             def replace_parent(match: re.Match) -> str:
                 prop_name = match.group(1)
-                if parent_context and prop_name in parent_context:
-                    return parent_context[prop_name]
-                if prop_name == "label":
+                if prop_name == "label" and not (parent_context and prop_name in parent_context):
                     return parent_item.label
-                if prop_name == "name":
+                if prop_name == "name" and not (parent_context and prop_name in parent_context):
                     return parent_item.name
-                if prop_name in parent_item.properties:
-                    return parent_item.properties[prop_name]
-                return ""
+                return lookup(prop_name, parent_context or {}, parent_item.properties) or ""
 
             text = _PARENT_PATTERN.sub(replace_parent, text)
 
         def replace_property(match: re.Match) -> str:
-            name = match.group(1)
-            if name in context:
-                return context[name]
-            if name in item.properties:
-                return item.properties[name]
-            return ""
+            return lookup(match.group(1), context, item.properties) or ""
 
         text = _PROPERTY_PATTERN.sub(replace_property, text)
 

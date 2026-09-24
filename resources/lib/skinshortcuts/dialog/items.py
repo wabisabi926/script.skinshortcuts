@@ -13,8 +13,7 @@ try:
 except ImportError:
     IN_KODI = False
 
-from ..conditions import evaluate_condition
-from ..loaders.base import apply_suffix_transform
+from ..conditions import evaluate_condition, suffix_condition
 from ..localize import LANGUAGE, resolve_label
 from ..models.background import BrowseSource
 from ..models.menu import Action, ContextMenu, ContextMenuButton, IconSource, MenuItem
@@ -68,7 +67,7 @@ def _default_context_labels(item: MenuItem) -> dict[int, str]:
     }
 
 
-def _browse_path(browse_type: int, title: str, start: str = "") -> str:
+def _browse_for_file(browse_type: int, title: str, start: str = "") -> str:
     """Browse for a file, unwrapping the image:// form Kodi's image browser returns."""
     result = xbmcgui.Dialog().browse(browse_type, title, "files", defaultt=start)
     return normalize_image(result) if isinstance(result, str) else ""
@@ -183,6 +182,8 @@ class ItemsMixin:
             properties["widgetSource"] = widget.source
         if widget.label:
             properties["widgetLabel"] = widget.label
+        if self.property_schema:
+            properties = {self.property_schema.declared_name(k): v for k, v in properties.items()}
 
         return MenuItem(
             name=widget.name,
@@ -425,9 +426,9 @@ class ItemsMixin:
 
         if not visible_sources:
             if default_path:
-                result = _browse_path(browse_type, title, default_path)
+                result = _browse_for_file(browse_type, title, default_path)
                 return result if result and result != default_path else None
-            return _browse_path(browse_type, title) or None
+            return _browse_for_file(browse_type, title) or None
 
         while True:
             listitems = []
@@ -450,9 +451,9 @@ class ItemsMixin:
             path = source.path
 
             if path.lower() == "browse":
-                result = _browse_path(browse_type, title)
+                result = _browse_for_file(browse_type, title)
             else:
-                result = _browse_path(browse_type, title, path)
+                result = _browse_for_file(browse_type, title, path)
 
             if result and result != path:
                 return result
@@ -481,7 +482,7 @@ class ItemsMixin:
 
         rows = []
         for button in buttons:
-            condition = apply_suffix_transform(button.condition, self.property_suffix)
+            condition = suffix_condition(button.condition, self.property_suffix)
             if condition and not evaluate_condition(condition, props):
                 continue
             if button.visible and not xbmc.getCondVisibility(button.visible):
@@ -522,11 +523,14 @@ class ItemsMixin:
         related: Mapping[str, str | None] | None = None,
         apply_suffix: bool = True,
     ) -> None:
-        """Set an item property in the manager for persistence and on the local item for the UI."""
+        """Set an item property in the manager and on the local item, under its declared name."""
         if not self.manager:
             return
 
+        schema = self.property_schema
         prop_name = self._suffixed_name(name) if apply_suffix else name
+        if schema:
+            prop_name = schema.declared_name(prop_name)
 
         self.manager.set_custom_property(self.menu_id, item.name, prop_name, value)
         if value:
@@ -542,6 +546,8 @@ class ItemsMixin:
         if related:
             for rel_name, rel_value in related.items():
                 rel_prop_name = self._suffixed_name(rel_name) if apply_suffix else rel_name
+                if schema:
+                    rel_prop_name = schema.declared_name(rel_prop_name)
                 self.manager.set_custom_property(
                     self.menu_id, item.name, rel_prop_name, rel_value
                 )
@@ -553,7 +559,3 @@ class ItemsMixin:
                     listitem = self._get_selected_listitem()
                     if listitem:
                         listitem.setProperty(rel_prop_name, "")
-
-    def _edit_submenu(self) -> None:
-        """Edit submenu - implemented by SubdialogsMixin."""
-        raise NotImplementedError

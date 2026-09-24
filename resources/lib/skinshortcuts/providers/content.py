@@ -10,7 +10,7 @@ import xbmc
 import xbmcvfs
 
 from ..log import get_logger
-from ..playlists import playlists_base_path, unpack_multipath
+from ..playlists import parse_smart_playlist, playlists_base_path, unpack_multipath
 from .browse import normalize_image
 
 if TYPE_CHECKING:
@@ -78,6 +78,8 @@ class ResolvedShortcut:
     browse_window: str = ""
     # marks a source shortcut; the playlist flow acts on video/music, the rest get Files view
     source_media: str = ""
+    # picker filter, not the picked item's runtime visibility
+    visible: str = ""
 
 
 def _expand_playlist_dirs(directory: str) -> list[str]:
@@ -205,10 +207,6 @@ class ContentProvider:
                 r.icon = self._icon_overrides.get(r.icon, r.icon)
         return result
 
-    def clear_cache(self) -> None:
-        """Clear the content cache."""
-        self._cache.clear()
-
     def _resolve_sources(self, target: str) -> list[ResolvedShortcut]:
         """Resolve media sources; an empty target defaults to video."""
         cache_key = f"sources_{target}"
@@ -317,7 +315,8 @@ class ContentProvider:
             playlist_type = ""
 
             if filepath.endswith(".xsp"):
-                playlist_type, playlist_name = self._parse_smart_playlist(filepath)
+                playlist_name, playlist_type = parse_smart_playlist(filepath)
+                playlist_type = playlist_type or "unknown"
                 if playlist_name:
                     display_label = playlist_name
                 if playlist_type in music_types:
@@ -346,25 +345,6 @@ class ContentProvider:
             )
 
         return shortcuts
-
-    def _parse_smart_playlist(self, filepath: str) -> tuple[str, str]:
-        """Parse a smart playlist (.xsp file) for type and name."""
-        try:
-            f = xbmcvfs.File(filepath)
-            try:
-                content = f.read()
-            finally:
-                f.close()
-
-            import xml.etree.ElementTree as ET
-
-            root = ET.fromstring(content)
-            playlist_type = root.get("type") or "unknown"
-            name_elem = root.find("name")
-            name = name_elem.text if name_elem is not None and name_elem.text else ""
-            return playlist_type, name
-        except Exception:
-            return "unknown", ""
 
     def _resolve_addons(self, target: str) -> list[ResolvedShortcut]:
         """Resolve installed addons by content type. Empty target defaults to video."""
@@ -545,18 +525,28 @@ class ContentProvider:
     def _resolve_commands(self) -> list[ResolvedShortcut]:
         """Resolve system commands."""
         commands = [
-            ("$LOCALIZE[13012]", "Quit()", "DefaultProgram.png"),  # Quit
-            ("$LOCALIZE[13005]", "Reboot()", "DefaultProgram.png"),  # Reboot
-            ("$LOCALIZE[13009]", "Powerdown()", "DefaultProgram.png"),  # Power off
-            ("$LOCALIZE[13014]", "Suspend()", "DefaultProgram.png"),  # Suspend
-            ("$LOCALIZE[13015]", "Hibernate()", "DefaultProgram.png"),  # Hibernate
-            ("$LOCALIZE[13016]", "RestartApp()", "DefaultProgram.png"),  # Restart
-            ("$LOCALIZE[20183]", "ReloadSkin()", "DefaultProgram.png"),  # Reload skin
+            ("$LOCALIZE[13012]", "Quit()", "System.ShowExitButton"),
+            ("$LOCALIZE[13013]", "Reboot()", "System.CanReboot"),
+            ("$LOCALIZE[13016]", "Powerdown()", "System.CanPowerDown"),
+            ("$LOCALIZE[13011]", "Suspend()", "System.CanSuspend"),
+            ("$LOCALIZE[13010]", "Hibernate()", "System.CanHibernate"),
+            ("$LOCALIZE[13313]", "RestartApp()", "System.Platform.Windows | System.Platform.Linux"),
+            ("$LOCALIZE[20183]", "ReloadSkin()", ""),
+            (
+                "$LOCALIZE[20126]",
+                "System.LogOff",
+                "System.HasLoginScreen | Integer.IsGreater(System.ProfileCount,1)",
+            ),
+            ("$ADDON[script.skinshortcuts 32046]", "UpdateLibrary(video)", ""),
+            ("$ADDON[script.skinshortcuts 32047]", "UpdateLibrary(music)", ""),
+            ("$ADDON[script.skinshortcuts 32055]", "CleanLibrary(video)", ""),
+            ("$ADDON[script.skinshortcuts 32056]", "CleanLibrary(music)", ""),
+            ("$LOCALIZE[360]", "ActivateScreensaver", ""),
         ]
 
         return [
-            ResolvedShortcut(label=label, action=action, icon=icon)
-            for label, action, icon in commands
+            ResolvedShortcut(label=label, action=action, icon="DefaultProgram.png", visible=visible)
+            for label, action, visible in commands
         ]
 
     def _resolve_settings(self) -> list[ResolvedShortcut]:

@@ -13,10 +13,9 @@ except ImportError:
     IN_KODI = False
 
 from ..constants import extract_path_from_action, get_shortcuts_path
-from ..conditions import evaluate_condition
+from ..conditions import evaluate_condition, suffix_condition
 from ..loaders.menu import load_menus
 from ..loaders.property import load_properties
-from ..loaders.base import apply_suffix_transform
 from ..localize import resolve_label
 from ..log import get_logger
 from ..manager import MenuManager
@@ -217,7 +216,7 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
         self.items.append(placeholder)
 
     def _display_items(self) -> None:
-        """Display items in the list control. Called once during onInit."""
+        """Display items in the list control, plus the edited item in 212 for a subdialog."""
         self._rebuild_list(focus_index=self._selected_index)
         if self.dialog_mode:
             self._populate_subdialog_list()
@@ -380,7 +379,7 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
             return False
         widget_requires = ("widget", "widgetPath", "widgetStyle")
         base_name = prop_name.split(".")[0] if "." in prop_name else prop_name
-        prop = self.property_schema.properties.get(base_name)
+        prop = self.property_schema.get_property(base_name)
         if prop and prop.requires in widget_requires:
             return True
         for button in self.property_schema.buttons.values():
@@ -457,7 +456,7 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
             for rule in fallback.rules:
                 condition = rule.condition
                 if condition and self.property_suffix:
-                    condition = apply_suffix_transform(condition, self.property_suffix)
+                    condition = suffix_condition(condition, self.property_suffix)
                 if not condition or evaluate_condition(condition, props):
                     props[effective_prop_name] = rule.value
                     break

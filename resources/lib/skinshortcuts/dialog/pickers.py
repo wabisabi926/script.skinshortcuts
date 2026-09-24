@@ -5,7 +5,7 @@ from __future__ import annotations
 import contextlib
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 try:
     import xbmc
@@ -16,38 +16,6 @@ except ImportError:
     IN_KODI = False
 
 
-def _check_visible(visible: str) -> bool:
-    """Check a Kodi visibility condition; empty passes."""
-    if not visible:
-        return True
-    if not IN_KODI:
-        return True
-    return xbmc.getCondVisibility(visible)
-
-
-@runtime_checkable
-class PickerItem(Protocol):
-    """Protocol for leaf items in picker hierarchy (Shortcut, Widget, Background)."""
-
-    name: str
-    label: str
-    icon: str
-    condition: str
-    visible: str
-
-
-@runtime_checkable
-class PickerGroup(Protocol):
-    """Protocol for group items in picker hierarchy."""
-
-    name: str
-    label: str
-    icon: str
-    condition: str
-    visible: str
-    items: list
-
-
 from ..constants import (
     ADDONS_SOURCE_MAP,
     TARGET_MAP,
@@ -55,7 +23,7 @@ from ..constants import (
     extract_path_from_action,
     extract_window_from_action,
 )
-from ..conditions import evaluate_condition
+from ..conditions import check_visible, evaluate_condition
 from ..loaders.menu import load_groupings
 from ..localize import LANGUAGE, resolve_label
 from ..log import get_logger
@@ -86,14 +54,14 @@ PLACEHOLDER_PREFIX = "content-placeholder-"
 SLOW_RESOLVE_MS = 250
 
 
-def _ms(start: float) -> float:
+def _elapsed_ms(start: float) -> float:
     """Elapsed milliseconds, for the picker's timing lines."""
     return (time.monotonic() - start) * 1000
 
 
 def _log_slow_resolve(content: Content, rows: int, start: float) -> None:
     """Log the <content> element when resolving it takes long enough to notice."""
-    elapsed = _ms(start)
+    elapsed = _elapsed_ms(start)
     if elapsed >= SLOW_RESOLVE_MS:
         log.debug(
             f"slow content: source={content.source} target={content.target} "
@@ -135,7 +103,7 @@ def _group_count(
     """Rows a group will show; empty when a content element cannot be counted."""
     total = 0
     for child in getattr(item, "items", []):
-        if not _check_visible(getattr(child, "visible", "")):
+        if not check_visible(getattr(child, "visible", "")):
             continue
         condition = getattr(child, "condition", "")
         if condition and not evaluate_condition(condition, item_props):
@@ -332,7 +300,7 @@ class PickersMixin:
             if new_submenu != previous_submenu:
                 self.manager.set_submenu(self.menu_id, item.name, new_submenu)
                 item.submenu = new_submenu
-                self.manager.drop_per_item_submenu(self.menu_id, item.name)
+                self.manager.drop_item_submenu(self.menu_id, item.name)
 
             self._refresh_selected_item()
 
@@ -342,7 +310,7 @@ class PickersMixin:
             action = self._choose_playlist_action(shortcut)
             return [Action(action=action)] if action else None
         if shortcut.browse and shortcut.path:
-            return [Action(action=shortcut.get_action())]
+            return [Action(action=shortcut.resolved_action())]
         return shortcut.actions if shortcut.actions else None
 
     def _choose_playlist_action(self, shortcut: Shortcut) -> str | None:
@@ -376,7 +344,7 @@ class PickersMixin:
         paths = unpack_multipath(shortcut.path)
         options = display_options(shortcut.source_media, paths)
         if len(options) == 1:
-            return shortcut.get_action()  # not a library source -> Files view, no dialog
+            return shortcut.resolved_action()  # not a library source -> Files view, no dialog
 
         labels = [
             xbmc.getLocalizedString(o.label_id) if o.core else LANGUAGE(o.label_id)
@@ -387,7 +355,7 @@ class PickersMixin:
             return None
         option = options[choice]
         if not option.media_type:
-            return shortcut.get_action()
+            return shortcut.resolved_action()
 
         # only an exclude can legitimately come back empty
         if option.exclude and not path_has_content(option.media_type, paths, exclude=True):
@@ -397,7 +365,7 @@ class PickersMixin:
                 nolabel=xbmc.getLocalizedString(222),
                 yeslabel=LANGUAGE(32079),
             )
-            return shortcut.get_action() if use_files else None
+            return shortcut.resolved_action() if use_files else None
 
         sort = self._pick_sort()
         if sort is None:
@@ -553,11 +521,13 @@ class PickersMixin:
         return widgets
 
     def _resolve_content_to_shortcuts(self, content: Content) -> list[Shortcut]:
-        """Resolve a Content reference to a list of Shortcut objects for the picker."""
+        """Resolve a Content reference to Shortcut objects for the picker, dropping hidden ones."""
         resolved = self._get_content_provider().resolve(content)
 
         shortcuts = []
         for item in resolved:
+            if not check_visible(item.visible):
+                continue
             shortcut = Shortcut(
                 name=f"dynamic-{content.source}-{len(shortcuts)}",
                 label=item.label,
@@ -715,7 +685,7 @@ class PickersMixin:
         )
         log.debug(
             f"picker: {picker_kind(leaf_types)} root rows={len(visible_items)} "
-            f"built in {_ms(start):.0f}ms"
+            f"built in {_elapsed_ms(start):.0f}ms"
         )
 
         if not visible_items:
@@ -864,7 +834,9 @@ class PickersMixin:
             group.items, item_props, leaf_types, group_types, content_resolver,
             create_folder_group, parent_label=group.label, parent_icon=group.icon,
         )
-        log.debug(f"picker: {group.name} rows={len(visible_items)} built in {_ms(start):.0f}ms")
+        log.debug(
+            f"picker: {group.name} rows={len(visible_items)} built in {_elapsed_ms(start):.0f}ms"
+        )
 
         if not visible_items:
             xbmcgui.Dialog().notification(LANGUAGE(32141), LANGUAGE(32142))
@@ -976,7 +948,7 @@ class PickersMixin:
             if isinstance(item, Content):
                 if item.condition and not evaluate_condition(item.condition, item_props):
                     continue
-                if item.visible and not _check_visible(item.visible):
+                if item.visible and not check_visible(item.visible):
                     continue
                 if content_resolver:
                     start = time.monotonic()
@@ -1005,7 +977,7 @@ class PickersMixin:
                         if resolved:
                             visible_items.extend(resolved)
             elif isinstance(item, (Input, *leaf_types, *group_types)):
-                if not _check_visible(getattr(item, "visible", "")):
+                if not check_visible(getattr(item, "visible", "")):
                     continue
                 condition = getattr(item, "condition", "")
                 if condition and not evaluate_condition(condition, item_props):

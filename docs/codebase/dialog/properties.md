@@ -49,9 +49,6 @@ Route property button click to appropriate handler based on property type from s
 | Method | Purpose |
 |--------|---------|
 | `_pick_playlist` | Show picker for playlists, returns (path, label, type) |
-| `_parse_smart_playlist` | Parse .xsp for name and type |
-| `_get_multipath_sources` | Extract paths from multipath:// URL |
-| `_resolve_playlist_path` | Resolve special:// paths to filesystem |
 
 ***
 
@@ -68,7 +65,7 @@ Route property button click to appropriate handler based on property type from s
 
 ## Requires Checking
 
-### `_check_requires`(item, requires_name) → bool
+### `_requires_met`(item, requires_name) → bool
 
 Check if a property requirement is satisfied. Used by property handlers to determine if a property can be set.
 

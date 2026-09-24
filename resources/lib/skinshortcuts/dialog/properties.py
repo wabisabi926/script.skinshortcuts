@@ -5,9 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from ..log import get_logger, notify
-
-_log = get_logger("Properties")
+from ..log import notify
 
 try:
     import xbmc
@@ -19,65 +17,14 @@ except ImportError:
     IN_KODI = False
 
 
-def _resolve_playlist_path(filepath: str) -> str | None:
-    """Resolve a playlist path to a readable file; special://videoplaylists/ is a multipath."""
-    import xbmcvfs
-
-    translated = xbmcvfs.translatePath(filepath)
-
-    if translated.startswith("multipath://"):
-        filename = filepath.rsplit("/", 1)[-1]
-        source_dirs = unpack_multipath(translated)
-        for source_dir in source_dirs:
-            candidate = f"{source_dir.rstrip('/')}/{filename}"
-            if xbmcvfs.exists(candidate):
-                return candidate
-        return None
-
-    return translated
-
-
-def _parse_smart_playlist(filepath: str) -> tuple[str, str]:
-    """Parse a smart playlist (.xsp file) for name and type."""
-    if not IN_KODI:
-        return "", ""
-
-    try:
-        import xml.etree.ElementTree as ET
-
-        import xbmcvfs
-
-        real_path = _resolve_playlist_path(filepath)
-        if not real_path:
-            _log.debug(f"file not found in source paths: {filepath}")
-            return "", ""
-
-        f = xbmcvfs.File(real_path)
-        try:
-            content = f.read()
-        finally:
-            f.close()
-
-        root = ET.fromstring(content)
-        name_elem = root.find("name")
-        name = name_elem.text if name_elem is not None and name_elem.text else ""
-
-        playlist_type = root.get("type") or ""
-
-        return name, playlist_type
-    except Exception as e:
-        _log.error(f"parse error for {filepath}: {e}")
-        return "", ""
-
-
-from ..conditions import evaluate_condition
+from ..conditions import evaluate_condition, suffix_condition
+from ..constants import BACKGROUND_SIBLINGS, WIDGET_EXTRAS, WIDGET_SIBLINGS
 from ..loaders.widget import load_widgets
-from ..loaders.base import apply_suffix_transform
 from ..localize import LANGUAGE, resolve_label
 from ..models.background import Background, BackgroundType, PlaylistSource
 from ..models.menu import Content, MenuItem
 from ..models.widget import Widget, WidgetGroup
-from ..playlists import playlists_base_path, unpack_multipath
+from ..playlists import parse_smart_playlist, playlists_base_path
 from ..providers.content import scan_playlist_files
 from .pickers import picker_select
 
@@ -158,8 +105,8 @@ class PropertiesMixin:
             positions: dict[str, int] | None = None,
         ) -> Background | None | Literal[False]: ...
 
-    def _check_requires(self, item: MenuItem, requires_name: str) -> bool:
-        """Check if a required property is satisfied."""
+    def _requires_met(self, item: MenuItem, requires_name: str) -> bool:
+        """Whether a required property is set; a widget or background also counts by its path."""
         if item.properties.get(requires_name, ""):
             return True
 
@@ -195,7 +142,7 @@ class PropertiesMixin:
             requires_name = requires
             if button.suffix and self.property_suffix:
                 requires_name = f"{requires}{self.property_suffix}"
-            if not self._check_requires(item, requires_name):
+            if not self._requires_met(item, requires_name):
                 xbmcgui.Dialog().notification(
                     LANGUAGE(32183),
                     LANGUAGE(32184) % requires_name,
@@ -342,14 +289,7 @@ class PropertiesMixin:
         base, suffix = _split_suffix(prefix)
 
         related: dict[str, str | None] = {
-            f"{base}Label{suffix}": None,
-            f"{base}Path{suffix}": None,
-            f"{base}Type{suffix}": None,
-            f"{base}Target{suffix}": None,
-            f"{base}Source{suffix}": None,
-            f"{base}Limit{suffix}": None,
-            f"{base}SortBy{suffix}": None,
-            f"{base}SortOrder{suffix}": None,
+            f"{base}{part}{suffix}": None for part in WIDGET_SIBLINGS + WIDGET_EXTRAS
         }
 
         self._set_item_property(item, prefix, "", related, apply_suffix=False)
@@ -480,10 +420,7 @@ class PropertiesMixin:
         base, suffix = _split_suffix(prefix)
 
         related: dict[str, str | None] = {
-            f"{base}Label{suffix}": None,
-            f"{base}Path{suffix}": None,
-            f"{base}Type{suffix}": None,
-            f"{base}PlaylistType{suffix}": None,
+            f"{base}{part}{suffix}": None for part in BACKGROUND_SIBLINGS
         }
 
         self._set_item_property(item, prefix, "", related, apply_suffix=False)
@@ -570,7 +507,7 @@ class PropertiesMixin:
             label = raw_label
             playlist_type = ""
             if path.endswith(".xsp"):
-                xsp_name, playlist_type = _parse_smart_playlist(path)
+                xsp_name, playlist_type = parse_smart_playlist(path)
                 if xsp_name:
                     label = xsp_name
 
@@ -659,7 +596,7 @@ class PropertiesMixin:
         for opt in prop.options:
             condition = opt.condition
             if condition and use_suffix:
-                condition = apply_suffix_transform(condition, self.property_suffix)
+                condition = suffix_condition(condition, self.property_suffix)
             if not condition or evaluate_condition(condition, item_props):
                 visible_options.append(opt)
 
@@ -680,7 +617,7 @@ class PropertiesMixin:
                 for icon_variant in opt.icons:
                     icon_cond = icon_variant.condition
                     if icon_cond and use_suffix:
-                        icon_cond = apply_suffix_transform(icon_cond, self.property_suffix)
+                        icon_cond = suffix_condition(icon_cond, self.property_suffix)
                     if not icon_cond or evaluate_condition(icon_cond, item_props):
                         icon = icon_variant.path
                         break
