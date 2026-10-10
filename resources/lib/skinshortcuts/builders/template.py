@@ -7,10 +7,15 @@ import re
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
 
-from ..conditions import NO_SUFFIX_PROPERTIES, evaluate_condition, lookup, suffix_condition
+from ..conditions import (
+    evaluate_condition,
+    lookup,
+    suffix_condition,
+    suffix_property,
+    with_defaults,
+)
 from ..constants import extract_path_from_action
 from ..expressions import process_if_expressions, process_math_expressions
-from ..loaders.base import apply_suffix_to_from
 from ..log import get_logger, notify
 from ..models.template import BuildMode, TemplateProperty
 
@@ -130,7 +135,7 @@ class TemplateBuilder:
         submenu_tpl: SubmenuTemplate,
         include_map: dict[str, ET.Element],
     ) -> None:
-        """Build a submenu template."""
+        """Build a submenu template into its include, from a named menu or by level."""
         if not submenu_tpl.controls:
             return
 
@@ -144,8 +149,12 @@ class TemplateBuilder:
         if submenu_tpl.name:
             menu = self._menu_map.get(submenu_tpl.name)
             if not menu:
-                log.debug(f"Named menu '{submenu_tpl.name}' not found for submenu template")
-                notify("Submenu Template Error", f"menu '{submenu_tpl.name}' not found")
+                notify(
+                    "Submenu Template Error",
+                    f"menu '{submenu_tpl.name}' not found",
+                    f"templates.xml: <submenu name=\"{submenu_tpl.name}\"> names a menu that is "
+                    "not defined; template skipped; define the menu or correct the name",
+                )
                 return
             self._build_submenu_named(submenu_tpl, menu, include_elem)
         elif submenu_tpl.level > 0:
@@ -476,6 +485,11 @@ class TemplateBuilder:
         variable_map: dict[str, ET.Element],
     ) -> None:
         """Build one output's template controls and variables, its suffix applied throughout."""
+        if template.controls is not None:
+            for name in sorted(self._find_insert_names(template.controls)):
+                if not self.schema.get_items_template(name):
+                    self._warn_missing_insert(name)
+
         for menu in self.menus:
             if template.menu and menu.name != template.menu:
                 continue
@@ -524,7 +538,7 @@ class TemplateBuilder:
         menu: Menu,
     ) -> dict[str, str]:
         """Build property context for a menu item, the output's suffix applied to each ref."""
-        context: dict[str, str] = {**menu.defaults.properties, **item.properties}
+        context = with_defaults(menu.defaults.properties, item.properties)
 
         context["index"] = str(idx)
         context["name"] = item.name
@@ -683,16 +697,16 @@ class TemplateBuilder:
             n = int(expr)
             return [""] + [f".{i}" for i in range(2, n + 1)]
         suffixes: list[str] = []
-        if expr in item.properties:
+        if lookup(expr, item.properties) is not None:
             suffixes.append("")
         for i in range(2, 100):
-            if f"{expr}.{i}" in item.properties:
+            if lookup(f"{expr}.{i}", item.properties) is not None:
                 suffixes.append(f".{i}")
         return suffixes
 
     @staticmethod
     def _apply_iterate_to_text(text: str, suffix: str, index: int, as_name: str) -> str:
-        """Apply loop-locals and auto-suffix other $PROPERTY refs."""
+        """Apply one iterate slot: fill its Index and Suffix, suffix the other $PROPERTY names."""
         if not text:
             return text
         index_key = f"{as_name}Index"
@@ -704,9 +718,7 @@ class TemplateBuilder:
                 return str(index)
             if name == suffix_key:
                 return suffix
-            if name in NO_SUFFIX_PROPERTIES or not suffix:
-                return match.group(0)
-            return f"$PROPERTY[{name}{suffix}]"
+            return f"$PROPERTY[{suffix_property(name, suffix)}]"
 
         return _PROPERTY_PATTERN.sub(replace, text)
 
@@ -820,6 +832,10 @@ class TemplateBuilder:
             for group_ref in template.variable_groups:
                 self._collect_group_variables(group_ref.name, names, seen)
 
+        for items_def in self.schema.items_templates.values():
+            for group_ref in items_def.variable_groups:
+                self._collect_group_variables(group_ref.name, names, seen)
+
         for name in sorted(names - set(variable_map)):
             placeholder = ET.Element("variable")
             placeholder.set("name", name)
@@ -869,9 +885,7 @@ class TemplateBuilder:
                 return None
 
         if prop.from_source:
-            source = prop.from_source
-            if suffix:
-                source = apply_suffix_to_from(source, suffix)
+            source = suffix_property(prop.from_source, suffix)
             return self._get_from_source(source, item, context, suffix)
 
         value = prop.value
@@ -951,14 +965,13 @@ class TemplateBuilder:
         context: dict[str, str],
         suffix: str = "",
     ) -> None:
-        """Apply properties from a property group to context."""
+        """Apply properties from a property group; a literal only fills an unset name."""
         for prop in prop_group.properties:
             from_source = prop.from_source
             condition = prop.condition
 
             if suffix:
-                if from_source:
-                    from_source = apply_suffix_to_from(from_source, suffix)
+                from_source = suffix_property(from_source, suffix)
                 if condition:
                     condition = self._expand_expressions(condition)
                     condition = suffix_condition(condition, suffix)
@@ -1084,7 +1097,7 @@ class TemplateBuilder:
             for suffix in suffixes_in_use:
                 suffixed_prop = f"{prop_name}{suffix}" if suffix else prop_name
 
-                if suffixed_prop in context or suffixed_prop in item.properties:
+                if lookup(suffixed_prop, context, item.properties) is not None:
                     continue
 
                 for rule in fallback.rules:
@@ -1136,6 +1149,17 @@ class TemplateBuilder:
 
         return False
 
+    @staticmethod
+    def _warn_missing_insert(name: str) -> None:
+        """Warn that an insert names no items template."""
+        notify(
+            "Items Template Error",
+            f"'{name}' not defined",
+            f"templates.xml: <skinshortcuts insert=\"{name}\"/> has no "
+            f"<template items=\"{name}\">; nothing is inserted; define the items template "
+            "or correct the insert name",
+        )
+
     def _find_insert_names(self, elem: ET.Element) -> set[str]:
         """Find all skinshortcuts insert names in an element tree."""
         names: set[str] = set()
@@ -1171,7 +1195,7 @@ class TemplateBuilder:
             if expr:
                 expanded = self._expand_expressions(expr.value)
                 if expr.nosuffix:
-                    return f"{{NOSUFFIX:{expanded}}}"
+                    return f"{{NOSUFFIX:{self._strip_nosuffix_markers(expanded)}}}"
                 return expanded
             return match.group(0)
 
@@ -1353,8 +1377,7 @@ class TemplateBuilder:
         for i, child, insert_name in reversed(children_to_replace):
             items_def = self.schema.get_items_template(insert_name)
             if not items_def:
-                log.debug(f"Items definition '{insert_name}' not found")
-                notify("Items Template Error", f"'{insert_name}' not defined")
+                self._warn_missing_insert(insert_name)
                 elem.remove(child)
                 continue
 
@@ -1507,7 +1530,7 @@ class TemplateBuilder:
         submenu: Menu,
     ) -> dict[str, str]:
         """Build property context for a submenu item; parent properties come via $PARENT[...]."""
-        context: dict[str, str] = {**submenu.defaults.properties, **sub_item.properties}
+        context = with_defaults(submenu.defaults.properties, sub_item.properties)
         context["index"] = str(sub_idx)
         context["name"] = sub_item.name
         context["menu"] = submenu.name

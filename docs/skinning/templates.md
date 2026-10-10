@@ -453,9 +453,9 @@ Compute numeric values using property variables:
 | `()` | Grouping | `(id - 1) * 100` |
 
 **Notes:**
-- Property values are automatically converted to numbers
+- Property values are converted to numbers; a missing or non-numeric property counts as 0
 - Returns integers when possible, floats otherwise
-- Invalid expressions return the original text unchanged
+- An invalid expression is left as its bare text, without `$MATH[...]`, and shows an Expression Error notification
 
 ### $IF - Conditional Expressions
 
@@ -466,6 +466,8 @@ $IF[condition THEN trueValue]
 $IF[condition THEN trueValue ELSE falseValue]
 $IF[cond1 THEN val1 ELIF cond2 THEN val2 ELSE val3]
 ```
+
+`THEN`, `ELIF` and `ELSE` must be uppercase, and are reserved inside values: an uppercase `ELSE` in a value, or in a property the value reads, ends the clause there. A clause with no `THEN` is ignored and shows an Expression Error notification.
 
 **Examples:**
 
@@ -887,7 +889,7 @@ With corresponding items templates:
 
 ### Empty Submenus
 
-If a submenu doesn't exist or has no items, the insert marker produces no output. Other sibling elements in the template are unaffected.
+If a submenu doesn't exist or has no items, its insert marker produces no output. When every insert in the template is empty for an item, that item produces no output from the template, controls and variables included. When at least one insert has items, the rest of the template builds as normal.
 
 ### Disabled Items
 
