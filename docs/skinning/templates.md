@@ -153,6 +153,8 @@ When `suffix=".2"` is specified on an output:
 2. **Conditions** are transformed: property names get suffixed whether they appear with a value (`condition="widgetType=movies"` → `condition="widgetType.2=movies"`) or as bare presence checks (`condition="widgetPath"` → `condition="widgetPath.2"`)
 3. **The `suffix` built-in property** is set and available in conditions
 
+These names never take the suffix: `name`, `label`, `disabled`, `default`, `menu`, `index`, `id`, `idprefix`, `suffix`.
+
 ### The `suffix` Built-in Property
 
 Within template controls, you can check the current output's suffix:
@@ -311,6 +313,8 @@ If 3 items use the global skin string fallback and 1 item has a custom `backgrou
 
 Without properties defined, raw mode outputs controls once with all visibility OR'd (no per-item processing).
 
+Raw templates do not build `<variables>`, `<variableGroup>` references or `<skinshortcuts include>` markers. Declare variables in a menu template, and use a Kodi `<include>` for shared controls.
+
 ---
 
 ## Properties
@@ -351,9 +355,20 @@ When one property should override another based on a toggle, use mutually exclus
 <property name="sortby" condition="!useCustomSort" from="widgetSortBy" />
 ```
 
-The `!useCustomSort` negation keeps the two branches mutually exclusive. Without it, the first property sets the value and the second's `from` would always overwrite (since `from` always wins when set).
+The `!useCustomSort` negation keeps the two branches mutually exclusive, so their order does not matter. Without it, the first matching property wins, so the override has to come first.
 
 This pattern lets a skinner bind two UI controls to the same effective output: a full picker for the default property, plus a quick toggle that overrides it when enabled.
+
+### Precedence
+
+Within one list, the first matching `<property>` wins for a name. A list is a template's own
+elements, one property group, or one items or submenu template. A name takes either `<property>`
+elements or a single `<var>`, not both; a second definition is reported and the first is used.
+
+Lists apply in this order: template properties, vars, presets, preset groups, property groups. A
+`<property>`, a `<var>` or a property group `from=` replaces a value already set, the item's own
+included. A property group literal, a preset and a preset group only fill a name that is still
+unset.
 
 ### Built-in Sources
 
@@ -367,6 +382,8 @@ These are special values available in `from` attributes and `$PROPERTY[]`:
 | `idprefix` | The template's idprefix value |
 | `id` | Computed ID: `{idprefix}{index}` |
 | `suffix` | Output suffix (e.g., `.2`) or empty string if none |
+
+An output suffix never applies to these; [Suffix Transform](#suffix-transform) lists every such name.
 
 Standard item properties are also available:
 
@@ -781,6 +798,10 @@ Two property contexts are available within items templates:
 | `label` | Parent menu item label |
 | *custom* | Any property defined on the parent item |
 
+Slot suffixes do not apply inside items templates, since submenu items have no slots. The host
+template's output suffix is ignored there, and a `suffix=` on a `<preset>`, `<propertyGroup>` or
+`<variableGroup>` is ignored and reported.
+
 ### Condition vs Filter
 
 * `condition` on items template - Evaluated against the **parent** menu item. If false, the entire insert is skipped.
@@ -1046,7 +1067,7 @@ Reference:
 </template>
 ```
 
-All matched attributes become properties.
+All matched attributes become properties, except names already set (see [Precedence](#precedence)).
 
 ### Preset Reference Attributes
 
@@ -1223,7 +1244,7 @@ A single `<value iterate="..." as="...">` expands into multiple `<value>` entrie
 - `$PROPERTY[{as}Index]` - 1-based index (`1`, `2`, `3`, ...)
 - `$PROPERTY[{as}Suffix]` - the slot suffix (`""`, `".2"`, `".3"`, ...)
 
-All other `$PROPERTY[name]` references inside the value automatically gain the slot suffix. Built-in placeholders (`id`, `name`, `index`, `default`, `menu`, `idprefix`) stay unsuffixed.
+All other `$PROPERTY[name]` references inside the value automatically gain the slot suffix, except the names listed under [Suffix Transform](#suffix-transform).
 
 Example - one value per filled widget slot:
 
@@ -1303,7 +1324,7 @@ Reusable control snippets:
 </includes>
 ```
 
-Use in controls via the `<skinshortcuts>` tag:
+Use in a menu template's controls via the `<skinshortcuts>` tag:
 
 ```xml
 <controls>
@@ -1341,6 +1362,12 @@ Template for submenu generation:
 | `include` | Output include name pattern |
 | `level` | Any value > 0 enables iteration over main menu items' direct submenus (looked up as `mainmenu/{item.name}`). The numeric value is not a depth selector; values above 1 behave the same as 1. |
 | `name` | Match a single menu by exact name. When empty, the `level` attribute (>0) drives iteration over main menu items' submenus instead; with empty name and level 0, the submenu template produces no output. |
+
+### Supported Content
+
+A submenu template builds `<property>` (literal, `from=` and `condition=`) and `<var>`, `$PROPERTY`, `$EXP` and `$MATH` in its controls, and `<skinshortcuts insert>` markers. It does not build `<propertyGroup>`, `<preset>`, `<presetGroup>`, `<variableGroup>`, `<variables>` or `<condition>`, and leaves `$IF` and `$PARENT` as written; each is reported. A `<skinshortcuts include>` marker is reported and left out; use a Kodi `<include>` instead.
+
+An items template it inserts keeps its `filter`. Its `<condition>` tests the main menu item, so a named submenu template ignores it, and its `<variableGroup>` references are not built.
 
 ---
 

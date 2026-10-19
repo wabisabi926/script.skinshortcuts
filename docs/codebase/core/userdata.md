@@ -18,21 +18,25 @@ Stores user modifications to menus and view selections in JSON format. Provides 
 | Function | Returns | Description |
 |----------|---------|-------------|
 | `get_userdata_path()` | str | Path to userdata file for current skin |
-| `load_userdata(path=None)` | UserData | Load from JSON |
+| `load_userdata(path=None)` | UserData | Load from JSON; a damaged file gives defaults and is copied to `.bak` |
 | `save_userdata(userdata, path=None)` | bool | Save to JSON |
 
 ***
 
 ## Merge Function
 
-### merge_menu(default_menu, override) → Menu
+### merge_items(default_menu, diff, icon_overrides=None) → list[MenuItem]
 
-Merge default menu with user overrides.
+Merge default items with the user's diff.
 
 1. Start with default items, excluding removed ones
 2. Apply overrides to existing items
 3. Add new user items
-4. Reorder based on position values
+4. Reorder based on position values, which count items a `visible=` condition hides
+
+### merge_menu(default_menu, diff, icon_overrides=None) → Menu
+
+`merge_items`, then leave out items whose `visible=` condition fails.
 
 ***
 

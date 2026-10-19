@@ -304,6 +304,8 @@ the rest of `DialogSelect`.
 | `playlist` | Playlist source |
 | `property` | Property value |
 | `restore` | Restore a deleted item |
+| `content` | Content type, in the view picker |
+| `view` | View for a content type |
 
 The value is whichever select dialog is on screen, not the flow that opened it. Picking a browsable
 add-on in the widget picker closes that select and opens a fresh one, so the marker moves from
@@ -521,6 +523,7 @@ Prompts for confirmation, then deletes all userdata (menus and views) and rebuil
 ### Reset Menus Only
 
 ```xml
+<label>$ADDON[script.skinshortcuts 32208]</label>
 <onclick>RunScript(script.skinshortcuts,type=resetmenus)</onclick>
 ```
 
@@ -529,6 +532,7 @@ Prompts for confirmation, resets all menus to defaults but preserves view select
 ### Reset Views Only
 
 ```xml
+<label>$ADDON[script.skinshortcuts 32209]</label>
 <onclick>RunScript(script.skinshortcuts,type=resetviews)</onclick>
 ```
 
@@ -537,6 +541,7 @@ Prompts for confirmation, resets all view selections to defaults but preserves m
 ### Reset Single Menu
 
 ```xml
+<label>$ADDON[script.skinshortcuts 32210]</label>
 <onclick>RunScript(script.skinshortcuts,type=reset,menu=mainmenu)</onclick>
 ```
 

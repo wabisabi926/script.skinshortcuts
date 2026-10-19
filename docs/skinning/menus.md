@@ -124,6 +124,9 @@ lists: a submenu named `{item name}.{suffix}` that an items template iterates, r
 rather than the `submenu` attribute. Setting both stops the template finding it. See
 [Per-Item Widget Submenu](widgets.md#per-item-widget-submenu).
 
+Submenus are one level deep. Inside a submenu, button 405 does nothing and the context menu leaves
+it out.
+
 ### Attributes
 
 In addition to the attributes shared with `<menu>`:
@@ -529,7 +532,7 @@ For pickers invoked directly via `RunScript`, paired `prop=NAME,value=VALUE` arg
 |---------|-------------|
 | `<action>` | Action string (for action mode). Multiple allowed. Supports `condition` (see [Conditional Actions](#conditional-actions)) and `primary="true"` to set which action is used for display properties (defaults to the last unconditional action) |
 | `<path>` | Content path (for browse mode) |
-| `<visible>` | Kodi visibility condition baked into the resulting menu item when this shortcut is picked. Multiple elements are joined with ` + ` |
+| `<visible>` | Kodi visibility condition set on the resulting menu item when this shortcut is picked, replacing the item's own; a shortcut without one clears it. Multiple elements are joined with ` + ` |
 
 The attribute and child element are independent: the attribute gates picker visibility, the child element travels with the picked item.
 
@@ -628,7 +631,7 @@ Valid `target` values depend on the `source` attribute. Values are based on Kodi
 | `sources` | `video`, `music`, `pictures`, `files`, `programs` | Matches Kodi's Files.Media values |
 | `playlists` | `video`, `music` | Matches playlist directory names |
 | `nodes` | `video`, `music`, `library` | Library node types; `library` shows Videos and Music as two browsable entries to drill into |
-| `pvr` | `tv`, `radio` | PVR channel types |
+| `pvr` | `tv`, `radio` | PVR channel types; `tv` when no target is set |
 | `library` | See [Library Target Values](widgets.md#library-target-values) | Genre, year, studio, tag, actor queries |
 | `favourites` | (none) | No target needed |
 | `commands` | (none) | Power, log off, library update and clean, screensaver; each listed only where the system can run it |

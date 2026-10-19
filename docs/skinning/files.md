@@ -155,8 +155,9 @@ userdata/
 └── addon_data/
     └── script.skinshortcuts/
         ├── skin.name.userdata.json
+        ├── skin.name.userdata.json.bak   # copy of a userdata file the script could not read
         ├── skin.name.hashes        # internal rebuild cache (config + userdata hashes)
-        ├── skin.name.unsupported-ack   # written if the unsupported-skin warning is dismissed
+        ├── skin.name.unsupported-ack   # written if Ignore is picked on the unsupported-skin warning
         └── playlists/
             └── skin.name/
                 └── source-*.xsp    # playlists generated for source shortcuts

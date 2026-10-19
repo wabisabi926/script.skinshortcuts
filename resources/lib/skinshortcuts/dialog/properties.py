@@ -17,7 +17,7 @@ except ImportError:
     IN_KODI = False
 
 
-from ..conditions import evaluate_condition, suffix_condition
+from ..conditions import check_visible, evaluate_condition, suffix_condition
 from ..constants import BACKGROUND_SIBLINGS, WIDGET_EXTRAS, WIDGET_SIBLINGS
 from ..loaders.widget import load_widgets
 from ..localize import LANGUAGE, resolve_label
@@ -378,10 +378,13 @@ class PropertiesMixin:
         base, suffix = _split_suffix(prefix)
 
         related: dict[str, str | None] = {
+            f"{base}{part}{suffix}": None for part in BACKGROUND_SIBLINGS
+        }
+        related.update({
             f"{base}Label{suffix}": bg.label,
             f"{base}Path{suffix}": bg.path,
             f"{base}Type{suffix}": bg.type_name,
-        }
+        })
 
         self._set_item_property(item, prefix, bg.name, related, apply_suffix=False)
 
@@ -407,10 +410,13 @@ class PropertiesMixin:
             value = bg.name
 
         related: dict[str, str | None] = {
+            f"{base}{part}{suffix}": None for part in BACKGROUND_SIBLINGS
+        }
+        related.update({
             f"{base}Label{suffix}": label,
             f"{base}Path{suffix}": custom_path,
             f"{base}Type{suffix}": bg.type_name,
-        }
+        })
         if playlist_type:
             related[f"{base}PlaylistType{suffix}"] = playlist_type
 
@@ -600,7 +606,9 @@ class PropertiesMixin:
             condition = opt.condition
             if condition and use_suffix:
                 condition = suffix_condition(condition, self.property_suffix)
-            if not condition or evaluate_condition(condition, item_props):
+            if condition and not evaluate_condition(condition, item_props):
+                continue
+            if check_visible(opt.visible):
                 visible_options.append(opt)
 
         if not visible_options:
