@@ -49,7 +49,7 @@ Write includes XML to file.
   <thumb>...</thumb>
   <onclick condition="...">action</onclick>
   <visible>condition</visible>
-  <property name="id">1</property>
+  <property name="id">$NUMBER[1]</property>
   <property name="name">movies</property>
   <property name="menu">mainmenu</property>
   <property name="action">ActivateWindow(...)</property>

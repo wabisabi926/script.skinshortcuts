@@ -291,7 +291,7 @@ class IncludesBuilder:
 
         if not menu.controltype:
             builtins = {
-                "id": str(idx),
+                "id": f"$NUMBER[{idx}]",
                 "name": item.name,
                 "menu": menu.template_origin or menu.name,
                 "action": item.action,
