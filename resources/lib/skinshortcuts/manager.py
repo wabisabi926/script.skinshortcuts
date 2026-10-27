@@ -273,13 +273,14 @@ class MenuManager:
         return False
 
     def restore_item(self, menu_id: str, item: MenuItem) -> bool:
-        """Restore a previously deleted item."""
+        """Restore a deleted item, dropping any empty placeholder."""
         menu = self._ensure_working_menu(menu_id)
 
         menu.items[:] = [i for i in menu.items if not (i.is_placeholder and not i.actions)]
 
         restored = copy.deepcopy(item)
         menu.items.append(restored)
+        self.config.resolve_item_properties(menu)
         self._changed = True
         return True
 
@@ -295,6 +296,7 @@ class MenuManager:
         for i, item in enumerate(self.working[menu_id].items):
             if item.name == item_id:
                 self.working[menu_id].items[i] = copy.deepcopy(default_item)
+                self.config.resolve_item_properties(self.working[menu_id])
                 self._changed = True
                 return True
 
