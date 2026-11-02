@@ -210,8 +210,8 @@ Defines a menu item.
 
 | Attribute/Element | Where Applied | Purpose |
 |-------------------|---------------|---------|
-| `visible="..."` (attribute on `<item>`) | Config load (build time) | Omits the item from both the dialog and the generated include when the condition fails (e.g., hide playdisc when no disc drive) |
-| `<visible>` (child element) | Generated include | Output as `<visible>` in the include file |
+| `visible="..."` (attribute on `<item>`) | Config load (build time) | Whether the item applies to this system at all, such as an add-on being installed (`System.HasAddon(...)`), a platform or profiles. When it fails the item is left out of both the dialog and the generated include. A change in its result is picked up at the next startup build |
+| `<visible>` (child element) | Generated include | Whether to show the item right now, such as a disc being in the drive. Output as `<visible>` in the include file, so Kodi re-checks it as things change, and the item stays editable in the dialog |
 
 ### Multiple Visibility Conditions
 
@@ -296,7 +296,7 @@ Menu-level defaults apply to all items in the menu.
 | `<property>` | Default property values |
 | `<skinshortcuts>` | Include reference inserted into item output (works for both regular item menus and controltype menus) |
 
-The `<defaults>` element also supports `widget` and `background` attributes as shorthand:
+The `<defaults>` element also supports `widget` and `background` attributes as shorthand. An item that names no widget of its own gets the same widget properties as if it named the default one; backgrounds work the same way. A `<property>` on the item keeps its value. A widget or background value set in `<defaults>`, such as its path or label, applies only while the item uses the default one:
 
 ```xml
 <defaults widget="default-widget" background="default-bg">
@@ -751,10 +751,10 @@ Define subdialogs triggered by button clicks. Used for multi-widget support.
 ```xml
 <dialogs>
   <subdialog buttonID="800" mode="widget1" setfocus="309">
-    <onclose condition="widgetType=custom" action="menu" menu="{item}.customwidget" />
+    <onclose condition="widgetType=custom" action="menu" menu="{customWidget}" />
   </subdialog>
   <subdialog buttonID="801" mode="widget2" setfocus="309" suffix=".2">
-    <onclose condition="widgetType.2=custom" action="menu" menu="{item}.customwidget.2" />
+    <onclose condition="widgetType.2=custom" action="menu" menu="{customWidget.2}" />
   </subdialog>
 </dialogs>
 ```
@@ -783,15 +783,14 @@ This opens the custom widget menu for slot 2 immediately when button 850 is clic
 <subdialog buttonID="800" menu="{item}.widgets" />
 ```
 
-Adding `mode` alongside `menu` is not a direct open: the subdialog opens in that mode and `menu` is
-ignored. Pair the mode with an `<onclose action="menu">` instead.
+Adding `mode` alongside `menu` is not a direct open: the subdialog opens in that mode and `menu` is ignored. Pair the mode with an `<onclose action="menu">` instead.
 
 ### `<onclose>` Attributes
 
 | Attribute | Description |
 |-----------|-------------|
 | `action` | Action type: `menu` |
-| `menu` | Menu name for `action="menu"`. Supports `{item}` and `{customWidget}` / `{customWidget.N}` placeholders |
+| `menu` | Menu name for `action="menu"`. Supports `{item}` and `{customWidget}` / `{customWidget.N}` placeholders; the older `{item}.customwidget` / `{item}.customwidget.N` form opens the same menu |
 | `condition` | Condition evaluated against item properties |
 
 > **See also:**
@@ -862,8 +861,8 @@ The build keeps the variable in the paths it writes, so Kodi picks the folder wh
 draws and a change takes effect on the next skin reload. End every value with a slash.
 
 The folder may sit anywhere the skin can draw from, including inside `media/` where it is
-packed into `Textures.xbt`. Address a packed folder the way Kodi does, relative to
-`media/`, so `views/icons/` rather than a full path.
+packed into `Textures.xbt`. Address a packed folder relative to `media/`, so
+`views/icons/` rather than a full path.
 
 ### Scope
 

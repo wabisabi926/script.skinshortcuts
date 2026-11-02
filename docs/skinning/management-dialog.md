@@ -184,7 +184,7 @@ Properties set on the dialog window for conditional visibility:
 | `disableSubmenus` | `true` if disabled (empty if allowed) |
 | `skinshortcuts-menutype` | Menu type: `widgets` for a widget menu, `submenu` for a submenu, empty for a normal menu |
 | `skinshortcuts-hasdeleted` | `true` if deleted items exist |
-| `additionalDialog` | `true` while a child management dialog is stacked on top of this one (submenu editing or a subdialog/onclose mode); empty once the child closes |
+| `additionalDialog` | `true` while a child management dialog is stacked on top of this one (submenu editing or a subdialog/onclose mode); empty once the child closes, or for a subdialog once the menu its onclose opens closes |
 
 ### Subdialog Mode
 
@@ -226,7 +226,7 @@ Properties available on items in the menu list (control 211):
 | `ListItem.Icon` | Icon path |
 | `ListItem.Property(name)` | Item identifier |
 | `ListItem.Property(action)` | Full action string |
-| `ListItem.Property(originalAction)` | Original action string before any override is applied |
+| `ListItem.Property(originalAction)` | The action menus.xml gives the item, unchanged by the user's edits; an item the user added shows its current action |
 | `ListItem.Property(path)` | Bare content path |
 | `ListItem.Property(skinshortcuts-disabled)` | `True` or `False` |
 
@@ -416,7 +416,7 @@ In `menus.xml`:
 <dialogs>
   <subdialog buttonID="800" mode="widget1" setfocus="309" />
   <subdialog buttonID="801" mode="widget2" setfocus="309" suffix=".2">
-    <onclose condition="widgetType.2=custom" action="menu" menu="{item}.customwidget.2" />
+    <onclose condition="widgetType.2=custom" action="menu" menu="{customWidget.2}" />
   </subdialog>
   <!-- Direct menu opening (no mode change) -->
   <subdialog buttonID="850" menu="{customWidget}" suffix=".2" />
@@ -468,11 +468,10 @@ Use visibility conditions to show different controls:
 Execute actions when subdialog closes:
 
 ```xml
-<onclose condition="widgetType.2=custom" action="menu" menu="{item}.customwidget.2" />
+<onclose condition="widgetType.2=custom" action="menu" menu="{customWidget.2}" />
 ```
 
-* `{item}` is replaced with current item name
-* Opens item editor for custom widget menu
+This opens the selected item's custom widget menu for slot 2.
 
 ---
 
@@ -612,7 +611,7 @@ A `prop=` without a matching `value=` defaults to `true` (useful for boolean fla
 | `prop=<name>` paired with `value=<value>` | Set `<name>=<value>` on Home for the script's lifetime; cleared on exit |
 | `prop=<name>` alone | Set `<name>=true` on Home for the script's lifetime; cleared on exit |
 
-Values containing `&` need URL escaping (`%26`) because the arg string is parsed as a query string.
+Quote a value that contains a comma. When the first argument contains `&` or is the only one, write a literal `&` as `%26`, `+` as `%2B` and `%` as `%25`.
 
 ---
 

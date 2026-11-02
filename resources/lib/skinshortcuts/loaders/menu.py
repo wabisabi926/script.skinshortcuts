@@ -26,6 +26,7 @@ from ..models.menu import (
     Shortcut,
     ShortcutGroup,
     SubDialog,
+    display_action,
 )
 from ..log import get_logger, notify
 from .base import (
@@ -41,19 +42,17 @@ log = get_logger("MenuLoader")
 
 
 def load_menus(path: str | Path) -> MenuConfig:
-    """Load complete menu configuration from menus.xml."""
+    """Load menu configuration from menus.xml, all but the shortcut groupings."""
     path = Path(path)
     if not path.exists():
         return MenuConfig()
 
     root = parse_xml(path, "menus", MenuConfigError)
-    path_str = str(path)
 
     icon_sources = _parse_icons(root)
     icon_overrides = _parse_icon_overrides(root)
 
-    menus = _parse_menus(root, path_str, icon_overrides)
-    groupings = _parse_shortcut_groupings(root, path_str, icon_overrides=icon_overrides)
+    menus = _parse_menus(root, str(path), icon_overrides)
     subdialogs = _parse_dialogs(root)
     action_overrides = _parse_overrides(root)
     context_menu = _parse_context_menu(root)
@@ -61,7 +60,6 @@ def load_menus(path: str | Path) -> MenuConfig:
 
     return MenuConfig(
         menus=menus,
-        groupings=groupings,
         icon_sources=icon_sources,
         subdialogs=subdialogs,
         action_overrides=action_overrides,
@@ -207,7 +205,7 @@ def _parse_dialogs(root) -> list[SubDialog]:
 
         setfocus = None
         setfocus_str = get_attr(elem, "setfocus")
-        if setfocus_str and setfocus_str.isdigit():
+        if setfocus_str and setfocus_str.isdecimal():
             setfocus = int(setfocus_str)
 
         suffix = get_attr(elem, "suffix") or ""
@@ -324,12 +322,12 @@ def _parse_menu(
     controltype = get_attr(elem, "controltype") or ""
     icons = get_bool(elem, "icons", True)
     startid_str = get_attr(elem, "id") or ""
-    startid = int(startid_str) if startid_str.isdigit() else 1
+    startid = int(startid_str) if startid_str.isdecimal() else 1
     template_only = get_attr(elem, "template_only") or ""
-    build = get_attr(elem, "build") or "true"
+    build = (get_attr(elem, "build") or "true").lower()
     action = get_attr(elem, "action") or ""
-    standalone = (get_attr(elem, "standalone") or "true").lower() != "false"
-    submenu_path = get_attr(elem, "submenuPath") or ""
+    standalone = get_bool(elem, "standalone", True)
+    submenu_path = get_attr(elem, "submenuPath").lower()
 
     return Menu(
         name=menu_name,
@@ -357,7 +355,7 @@ def _parse_item(
     is_widget_submenu: bool = False,
     icon_overrides: IconOverrides | None = None,
 ) -> MenuItem:
-    """Parse an item element: label, icon, actions, properties and protection."""
+    """Parse an item element: label, icon, actions, includes, properties and protection."""
     overrides = icon_overrides or IconOverrides()
     item_name = get_attr(elem, "name")
     if not item_name:
@@ -381,11 +379,10 @@ def _parse_item(
         elif child.tag == "skinshortcuts":
             include_name = get_attr(child, "include")
             if include_name:
-                position = "after-onclick" if seen_action else "before-onclick"
                 includes.append(IncludeRef(
                     name=include_name,
                     condition=get_attr(child, "condition") or "",
-                    position=position,
+                    after_onclick=seen_action,
                 ))
 
     properties = {}
@@ -432,12 +429,13 @@ def _parse_item(
         protection=protection,
         properties=properties,
         submenu=get_attr(elem, "submenu"),
+        original_action=display_action(actions),
         includes=includes,
     )
 
 
 def _parse_defaults(elem) -> MenuDefaults:
-    """Parse a defaults element: properties and actions every item in the menu starts with."""
+    """Parse a defaults element: properties, actions and includes every item in the menu gets."""
     if elem is None:
         return MenuDefaults()
 
@@ -469,11 +467,10 @@ def _parse_defaults(elem) -> MenuDefaults:
         elif child.tag == "skinshortcuts":
             include_name = get_attr(child, "include")
             if include_name:
-                position = "after-onclick" if seen_action else "before-onclick"
                 includes.append(IncludeRef(
                     name=include_name,
                     condition=get_attr(child, "condition") or "",
-                    position=position,
+                    after_onclick=seen_action,
                 ))
 
     return MenuDefaults(
@@ -488,28 +485,23 @@ def _parse_allow(elem) -> MenuAllow:
     if elem is None:
         return MenuAllow()
 
-    def parse_bool(value: str | None, default: bool = True) -> bool:
-        if value is None:
-            return default
-        return value.lower() == "true"
-
     return MenuAllow(
-        widgets=parse_bool(get_attr(elem, "widgets")),
-        backgrounds=parse_bool(get_attr(elem, "backgrounds")),
-        submenus=parse_bool(get_attr(elem, "submenus")),
+        widgets=get_bool(elem, "widgets", True),
+        backgrounds=get_bool(elem, "backgrounds", True),
+        submenus=get_bool(elem, "submenus", True),
     )
 
 
 def load_groupings(
     path: str | Path, menu_id: str = ""
 ) -> list[Shortcut | ShortcutGroup | Content | Input]:
-    """Load shortcut groupings from a menus.xml file."""
+    """Load shortcut groupings for a menu from menus.xml, with the skin's icon overrides applied."""
     path = Path(path)
     if not path.exists():
         return []
 
     root = parse_xml(path, "menus", MenuConfigError)
-    return _parse_shortcut_groupings(root, str(path), menu_id)
+    return _parse_shortcut_groupings(root, str(path), menu_id, _parse_icon_overrides(root))
 
 
 def _parse_shortcut_groupings(
@@ -518,7 +510,7 @@ def _parse_shortcut_groupings(
     menu_id: str = "",
     icon_overrides: IconOverrides | None = None,
 ) -> list[Shortcut | ShortcutGroup | Content | Input]:
-    """Parse groupings from root element."""
+    """Parse the groupings a menu gets: its own <groupings menu>, else the default one."""
     overrides = icon_overrides or IconOverrides()
     default_elem = None
     menu_elem = None
@@ -531,7 +523,7 @@ def _parse_shortcut_groupings(
         if not menu_attr and default_elem is None:
             default_elem = elem
 
-    groupings_elem = menu_elem or default_elem
+    groupings_elem = menu_elem if menu_elem is not None else default_elem
     if groupings_elem is None:
         return []
 

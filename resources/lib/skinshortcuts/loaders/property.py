@@ -73,11 +73,7 @@ class PropertyLoader:
                     if btn:
                         buttons[btn.button_id] = btn
                 elif child.tag == "group":
-                    group_suffix_attr = child.get("suffix")
-                    if group_suffix_attr is not None:
-                        group_suffix = group_suffix_attr.lower() == "true"
-                    else:
-                        group_suffix = default_suffix
+                    group_suffix = get_bool(child, "suffix", default_suffix)
                     for btn_elem in child.findall("button"):
                         btn = self._parse_button(btn_elem, group_suffix)
                         if btn:
@@ -120,22 +116,14 @@ class PropertyLoader:
                 continue
             self._includes[name] = list(include_elem)
 
-    def _expand_include(
-        self, include_elem: ET.Element, suffix: str = ""
-    ) -> list[ET.Element]:
-        """Expand an include reference."""
+    def _expand_include(self, include_elem: ET.Element) -> list[ET.Element]:
+        """Expand an include reference to element copies, suffix= applied to their conditions."""
         content_name = (include_elem.get("content") or "").strip()
-        if not content_name or content_name not in self._includes:
-            return []
-
-        suffix = suffix or include_elem.get("suffix") or ""
-
-        result = []
-        for elem in self._includes[content_name]:
-            copied = self._copy_element_with_suffix(elem, suffix)
-            result.append(copied)
-
-        return result
+        suffix = include_elem.get("suffix") or ""
+        return [
+            self._copy_element_with_suffix(elem, suffix)
+            for elem in self._includes.get(content_name, [])
+        ]
 
     def _copy_element_with_suffix(self, elem: ET.Element, suffix: str) -> ET.Element:
         """Deep copy element, applying suffix transform to conditions."""
@@ -188,7 +176,7 @@ class PropertyLoader:
     def _parse_button(
         self, elem: ET.Element, default_suffix: bool = False
     ) -> ButtonMapping | None:
-        """Parse a button element from the buttons section."""
+        """Parse a button element; no id skips it, a bad id or a missing property raises."""
         button_id_str = (elem.get("id") or "").strip()
         if not button_id_str:
             log.warning(f"{self.path}: <button> mapping missing 'id' attribute, skipping")
@@ -209,15 +197,10 @@ class PropertyLoader:
                 f"Button {button_id} missing property attribute",
             )
 
-        suffix_attr = elem.get("suffix")
-        if suffix_attr is not None:
-            suffix = suffix_attr.lower() == "true"
-        else:
-            suffix = default_suffix
-
+        suffix = get_bool(elem, "suffix", default_suffix)
         title = (elem.get("title") or "").strip()
-        show_none = (elem.get("showNone") or "true").lower() != "false"
-        show_icons = (elem.get("showIcons") or "true").lower() != "false"
+        show_none = get_bool(elem, "showNone", True)
+        show_icons = get_bool(elem, "showIcons", True)
         prop_type = (elem.get("type") or "").strip()
         requires = (elem.get("requires") or "").strip()
         rename = get_bool(elem, "rename")

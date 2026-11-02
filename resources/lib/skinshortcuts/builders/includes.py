@@ -43,8 +43,6 @@ class IncludesBuilder:
         """Build the includes XML tree."""
         root = ET.Element("includes")
 
-        # root menus only; <submenu> definitions and templated menus get no raw include
-
         template_menu_names: set[str] = set()
         if self.templates:
             for submenu_tpl in self.templates.submenus:
@@ -105,7 +103,7 @@ class IncludesBuilder:
             root.append(include)
             emitted_submenu_names.add(include_name)
 
-        if self.templates and self.templates.templates:
+        if self.templates and (self.templates.templates or self.templates.submenus):
             from .template import TemplateBuilder
 
             template_builder = TemplateBuilder(
@@ -248,8 +246,8 @@ class IncludesBuilder:
             ET.SubElement(elem, "thumb").text = item.thumb
 
         all_includes = menu.defaults.includes + item.includes
-        before_includes = [i for i in all_includes if i.position == "before-onclick"]
-        after_includes = [i for i in all_includes if i.position == "after-onclick"]
+        before_includes = [i for i in all_includes if not i.after_onclick]
+        after_includes = [i for i in all_includes if i.after_onclick]
 
         for inc in before_includes:
             include_elem = ET.SubElement(elem, "include")

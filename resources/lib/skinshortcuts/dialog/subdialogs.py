@@ -1,10 +1,12 @@
-"""Subdialog management mixin - submenu editing, widget slots, onclose handling."""
+"""Subdialog management mixin: submenu editing, widget slots, onclose handling."""
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING
 
 try:
+    import xbmc
     import xbmcgui
 
     IN_KODI = True
@@ -23,7 +25,7 @@ if TYPE_CHECKING:
 
 
 class SubdialogsMixin:
-    """Mixin providing subdialog management - submenu editing, widget slots."""
+    """Mixin providing subdialog management: submenu editing, widget slots."""
 
     menu_id: str
     shortcuts_path: str
@@ -35,6 +37,8 @@ class SubdialogsMixin:
     _subdialogs: dict[int, SubDialog]
     _dialog_xml: str
     _skin_path: str
+    _window_id: int
+    _covers = 0
 
     if TYPE_CHECKING:
         def _get_selected_index(self) -> int: ...
@@ -43,16 +47,38 @@ class SubdialogsMixin:
         def _refresh_selected_item(self) -> None: ...
         def _rebuild_list(self, focus_index: int | None = None) -> None:
             """Rebuild the list on the given row or row 0, plus 212 in a subdialog."""
+
         def _mirror_to_home(self) -> None:
             """Mirror the dialog mode and suffix to Home, for a native dialog over this one."""
+
         def _log(self, msg: str) -> None: ...
         def _get_content_provider(self) -> ContentProvider: ...
 
         def setProperty(self, key: str, value: str) -> None: ...
         def clearProperty(self, key: str) -> None: ...
 
+    @contextlib.contextmanager
+    def _covered(self):
+        """Set additionalDialog for the block; outermost one clears it and restores Home mirror."""
+        self._covers += 1
+        self.setProperty("additionalDialog", "true")
+        try:
+            yield
+        finally:
+            self._covers -= 1
+            if not self._covers:
+                self.clearProperty("additionalDialog")
+                self._mirror_to_home()
+
+    def _wait_for_closing_child(self) -> None:
+        """Wait up to a second for a closing child to finish, as it redraws from the Home mirror."""
+        monitor = xbmc.Monitor()
+        for _ in range(50):
+            if xbmcgui.getCurrentWindowDialogId() == self._window_id or monitor.waitForAbort(0.02):
+                return
+
     def _run_child_dialog(self, menu_id: str, dialog_mode: str = "", **kwargs) -> None:
-        """Run a child ManagementDialog on this dialog's objects, then restore its Home mirror."""
+        """Run a child ManagementDialog on this dialog's objects, with additionalDialog set."""
         if self.manager and menu_id not in self.manager.working:
             self.manager._ensure_working_menu(menu_id)
 
@@ -73,13 +99,11 @@ class SubdialogsMixin:
             dialog_mode=dialog_mode,
             **kwargs,
         )
-        self.setProperty("additionalDialog", "true")
         try:
-            child.doModal()
+            with self._covered():
+                child.doModal()
         finally:
             del child
-            self.clearProperty("additionalDialog")
-            self._mirror_to_home()
 
     def _edit_submenu(self) -> None:
         """Edit the item's submenu in a widget or shortcut child dialog, then refresh its row."""
@@ -129,11 +153,13 @@ class SubdialogsMixin:
             return
 
         self._log(f"Spawning subdialog with mode: {subdialog.mode}, suffix: {subdialog.suffix}")
-        if not self._open_subdialog(subdialog, item):
-            return
+        # one cover for both children; this dialog never shows between them
+        with self._covered():
+            if not self._open_subdialog(subdialog, item):
+                return
 
-        if subdialog.onclose:
-            self._handle_onclose(subdialog, item)
+            if subdialog.onclose:
+                self._handle_onclose(subdialog, item)
 
     def _handle_onclose(self, subdialog: SubDialog, item: MenuItem) -> None:
         """Handle a closed subdialog's onclose actions, running the first whose condition holds."""
@@ -154,6 +180,7 @@ class SubdialogsMixin:
                 menu_name = self._resolve_menu_reference(action.menu, current_item, subdialog)
                 if menu_name:
                     self._log(f"Onclose: opening menu {menu_name}")
+                    self._wait_for_closing_child()
                     self._open_onclose_menu(menu_name, subdialog)
                 return
 

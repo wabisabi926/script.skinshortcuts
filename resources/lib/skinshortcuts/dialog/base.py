@@ -77,7 +77,6 @@ def _create_listitem(values: _ListItemValues) -> xbmcgui.ListItem:
 class DialogBaseMixin(xbmcgui.WindowXMLDialog):
     """Core dialog functionality: initialization, list management, event routing."""
 
-
     menu_id: str
     shortcuts_path: str
     manager: MenuManager | None
@@ -89,6 +88,7 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
     property_suffix: str
     is_child: bool
     changes_saved: bool
+    _window_id: int
     _shared_manager: MenuManager | None
     _shared_schema: PropertySchema | None
     _shared_icon_sources: list[IconSource] | None
@@ -141,11 +141,6 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
             return f"{name}{self.property_suffix}"
         return name
 
-    def _get_item_property(self, item: MenuItem, name: str) -> str:
-        """Get a property value with suffix applied."""
-        suffixed = self._suffixed_name(name)
-        return item.properties.get(suffixed, "")
-
     def _list(self, control_id: int) -> xbmcgui.ControlList:
         """The list control, typed as ControlList since Kodi's getControl returns base Control."""
         return self.getControl(control_id)  # type: ignore[return-value]
@@ -153,6 +148,7 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
     def onInit(self):  # noqa: N802
         """Load config and items, then display the list and set the window properties."""
         self._log(f"onInit: shortcuts_path={self.shortcuts_path}, menu_id={self.menu_id}")
+        self._window_id = xbmcgui.getCurrentWindowDialogId()
 
         if self.manager is None:
             if self._shared_manager:
@@ -187,7 +183,6 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
             menu = self.manager.working.get(self.menu_id)
             if menu and menu.menu_type == "widgets":
                 self.dialog_mode = "widgets"
-
 
         if self.property_suffix:
             self.setProperty("skinshortcuts-suffix", self.property_suffix)
@@ -298,43 +293,43 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
         """Everything a ListItem shows for a MenuItem."""
         props: dict[str, str] = {}
 
-        def put(name: str, value: str) -> None:
+        def stamp(name: str, value: str) -> None:
             props[name.lower()] = value
 
-        put("name", item.name)
-        put("action", item.action or "")
-        put("path", extract_path_from_action(item.action) if item.action else "")
-        put("originalAction", item.original_action or item.action or "")
-        put("skinshortcuts-disabled", "True" if item.disabled else "False")
-        put("skinshortcuts-isRequired", "True" if item.required else "False")
-        put("skinshortcuts-isProtected", "True" if item.protection else "False")
+        stamp("name", item.name)
+        stamp("action", item.action or "")
+        stamp("path", extract_path_from_action(item.action) if item.action else "")
+        stamp("originalAction", item.original_action or item.action or "")
+        stamp("skinshortcuts-disabled", "True" if item.disabled else "False")
+        stamp("skinshortcuts-isRequired", "True" if item.required else "False")
+        stamp("skinshortcuts-isProtected", "True" if item.protection else "False")
 
         widget_name = item.properties.get("widget", "")
         has_widget = bool(widget_name or item.properties.get("widgetPath"))
         if has_widget:
-            put("widget", widget_name)
-            put("widgetLabel", _display_label(item.properties.get("widgetLabel", "")))
-            put("widgetPath", item.properties.get("widgetPath", ""))
-            put("widgetType", item.properties.get("widgetType", ""))
-            put("widgetTarget", item.properties.get("widgetTarget", ""))
-            put("widgetSource", item.properties.get("widgetSource", ""))
+            stamp("widget", widget_name)
+            stamp("widgetLabel", _display_label(item.properties.get("widgetLabel", "")))
+            stamp("widgetPath", item.properties.get("widgetPath", ""))
+            stamp("widgetType", item.properties.get("widgetType", ""))
+            stamp("widgetTarget", item.properties.get("widgetTarget", ""))
+            stamp("widgetSource", item.properties.get("widgetSource", ""))
         else:
-            put("widget", "")
-            put("widgetLabel", "")
-            put("widgetPath", "")
-            put("widgetType", "")
-            put("widgetTarget", "")
-            put("widgetSource", "")
+            stamp("widget", "")
+            stamp("widgetLabel", "")
+            stamp("widgetPath", "")
+            stamp("widgetType", "")
+            stamp("widgetTarget", "")
+            stamp("widgetSource", "")
 
         background_name = item.properties.get("background", "")
         if background_name:
-            put("background", background_name)
-            put("backgroundLabel", _display_label(item.properties.get("backgroundLabel", "")))
-            put("backgroundPath", item.properties.get("backgroundPath", ""))
+            stamp("background", background_name)
+            stamp("backgroundLabel", _display_label(item.properties.get("backgroundLabel", "")))
+            stamp("backgroundPath", item.properties.get("backgroundPath", ""))
         else:
-            put("background", "")
-            put("backgroundLabel", "")
-            put("backgroundPath", "")
+            stamp("background", "")
+            stamp("backgroundLabel", "")
+            stamp("backgroundPath", "")
 
         effective_props = self._get_effective_properties(item)
         for prop_name, prop_value in effective_props.items():
@@ -360,15 +355,15 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
                 else:
                     slot_widget = has_widget
                 if not slot_widget:
-                    put(prop_name, "")
-                    put(f"{prop_name}Label", "")
+                    stamp(prop_name, "")
+                    stamp(f"{prop_name}Label", "")
                     continue
             if prop_name.split(".")[0].endswith("Label"):
                 prop_value = _display_label(prop_value)
-            put(prop_name, prop_value)
+            stamp(prop_name, prop_value)
             resolved_label = self._get_property_label(prop_name, prop_value)
             if resolved_label:
-                put(f"{prop_name}Label", resolved_label)
+                stamp(f"{prop_name}Label", resolved_label)
 
         if self.manager:
             template = (
@@ -379,11 +374,11 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
             instance = self.manager.working.get(self.manager.submenu_key(self.menu_id, item.name))
             effective = instance if instance is not None else template
             if effective and any(not entry.is_placeholder for entry in effective.items):
-                put("hasSubmenu", "true")
-                put("submenu", item.submenu or "")
+                stamp("hasSubmenu", "true")
+                stamp("submenu", item.submenu or "")
 
             is_modified = self.manager.is_item_modified(self.menu_id, item.name)
-            put("isResettable", "true" if is_modified else "")
+            stamp("isResettable", "true" if is_modified else "")
 
         return _ListItemValues(
             label=resolve_label(item.label),
@@ -576,14 +571,13 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
             return False
 
     def close(self) -> None:
-        """Close the dialog, saving any changes and clearing the Home properties set in onInit."""
-        if self.dialog_mode:
+        """Close the dialog; unless a child, clear the Home mirror and save, recording success."""
+        if self.dialog_mode and not self.is_child:
             home = xbmcgui.Window(10000)
             home.clearProperty("skinshortcuts-dialog")
             home.clearProperty("skinshortcuts-suffix")
         if not self.is_child and self.manager and self.manager.has_changes():
-            self.manager.save()
-            self.changes_saved = True
+            self.changes_saved = self.manager.save()
         xbmcgui.WindowXMLDialog.close(self)
 
     def _add_item(self) -> None:

@@ -17,7 +17,7 @@ except ImportError:
     IN_KODI = False
 
 
-from ..conditions import check_visible, evaluate_condition, suffix_condition
+from ..conditions import check_visible, evaluate_condition, lookup, suffix_condition
 from ..constants import BACKGROUND_SIBLINGS, WIDGET_EXTRAS, WIDGET_SIBLINGS
 from ..loaders.widget import load_widgets
 from ..localize import LANGUAGE, resolve_label
@@ -65,7 +65,6 @@ class PropertiesMixin:
 
         def _get_selected_item(self) -> MenuItem | None: ...
         def _get_item_properties(self, item: MenuItem) -> dict[str, str]: ...
-        def _get_item_property(self, item: MenuItem, name: str) -> str: ...
         def _refresh_selected_item(self) -> None: ...
         def _log(self, msg: str) -> None: ...
 
@@ -92,10 +91,6 @@ class PropertiesMixin:
             items: list[WidgetGroup | Widget | Content],
             item_props: dict[str, str],
             slot: str = "",
-        ) -> Widget | None | Literal[False]: ...
-
-        def _pick_widget_flat(
-            self, widgets: list, item_props: dict[str, str] | None = None, slot: str = ""
         ) -> Widget | None | Literal[False]: ...
 
         def _pick_background(
@@ -156,15 +151,15 @@ class PropertiesMixin:
         prop_type = button.type or (prop.type if prop else "")
 
         if prop_type == "widget":
-            widget = self._handle_widget_property(prop, item, prop_name)
+            widget = self._handle_widget_property(item, prop_name)
             if widget is not None and button.rename:
                 self._prompt_widget_rename(item, prop_name, widget)
             return True
         if prop_type == "background":
-            self._handle_background_property(prop, item, prop_name)
+            self._handle_background_property(item, prop_name)
             return True
         if prop_type == "toggle":
-            self._handle_toggle_property(prop, item, button, prop_name)
+            self._handle_toggle_property(prop, item, prop_name)
             return True
         if prop_type == "text":
             self._handle_text_property(item, button, prop_name)
@@ -185,8 +180,8 @@ class PropertiesMixin:
 
         return self._handle_options_property(prop, item, button, prop_name)
 
-    def _handle_widget_property(self, prop, item: MenuItem, prop_name: str) -> Widget | None:
-        """Handle a widget-type property; picking custom sets widgetType=custom for an onclose."""
+    def _handle_widget_property(self, item: MenuItem, prop_name: str) -> Widget | None:
+        """Handle a widget-type property; widget dialogs give the item the pick's label and icon."""
         if self.manager is None:
             return None
         menu = self.manager.config.get_menu(self.menu_id)
@@ -199,20 +194,12 @@ class PropertiesMixin:
         widgets_path = Path(self.shortcuts_path) / "widgets.xml"
         widget_config = load_widgets(widgets_path)
 
+        if not widget_config.groupings:
+            xbmcgui.Dialog().notification(LANGUAGE(32147), LANGUAGE(32148))
+            return None
+
         item_props = self._get_item_properties(item)
-        result = None
-
-        if widget_config.groupings:
-            result = self._pick_widget_from_groups(
-                widget_config.groupings, item_props, slot
-            )
-        else:
-            widgets = self.manager.get_widgets()
-            if not widgets:
-                xbmcgui.Dialog().notification(LANGUAGE(32147), LANGUAGE(32148))
-                return None
-            result = self._pick_widget_flat(widgets, item_props, slot)
-
+        result = self._pick_widget_from_groups(widget_config.groupings, item_props, slot)
         if result is None:
             return None
 
@@ -300,8 +287,8 @@ class PropertiesMixin:
         if self.manager is not None:
             self.manager.clear_custom_widget(self.menu_id, item.name, suffix)
 
-    def _handle_background_property(self, prop, item: MenuItem, prop_name: str) -> None:
-        """Handle a background-type property."""
+    def _handle_background_property(self, item: MenuItem, prop_name: str) -> None:
+        """Handle a background-type property; a cancelled path pick reopens the picker."""
         if self.manager is None:
             return
         menu = self.manager.config.get_menu(self.menu_id)
@@ -310,7 +297,7 @@ class PropertiesMixin:
             return
 
         prefix = prop_name
-        current_bg = self._get_item_property(item, prefix)
+        current_bg = lookup(prefix, item.properties) or ""
         item_props = self._get_item_properties(item)
         positions: dict[str, int] = {}
 
@@ -354,7 +341,7 @@ class PropertiesMixin:
 
             if bg.type in (BackgroundType.PLAYLIST, BackgroundType.LIVE_PLAYLIST) and not bg.path:
                 base, suffix = _split_suffix(prefix)
-                current_playlist = self._get_item_property(item, f"{base}Path{suffix}")
+                current_playlist = lookup(f"{base}Path{suffix}", item.properties) or ""
                 result = self._pick_playlist(
                     bg.sources, bg.label if bg.sources else "", current_playlist
                 )
@@ -550,8 +537,8 @@ class PropertiesMixin:
 
         return (playlists[selected][1], playlists[selected][0], playlists[selected][3])
 
-    def _handle_toggle_property(self, prop, item: MenuItem, button, prop_name: str) -> None:
-        """Handle a toggle-type property."""
+    def _handle_toggle_property(self, prop, item: MenuItem, prop_name: str) -> None:
+        """Handle a toggle-type property, clearing it when on, else setting its value."""
         toggle_value = (prop.value if prop else "") or "True"
         current_value = item.properties.get(prop_name, "")
         if current_value == toggle_value:

@@ -77,7 +77,9 @@ Defines menu structure, shortcut picker groupings, icon sources, and action over
       <shortcut name="movies" label="Movies" icon="DefaultMovies.png" type="Video" condition="..." visible="...">
         <action>ActivateWindow(Videos,videodb://movies/)</action>
       </shortcut>
-      <shortcut name="playlists" label="Playlists" icon="DefaultPlaylist.png" path="special://profile/playlists/video/" browse="videos" />
+      <shortcut name="playlists" label="Playlists" icon="DefaultPlaylist.png" browse="videos">
+        <path>special://profile/playlists/video/</path>
+      </shortcut>
       <group name="nested" label="Nested Group">...</group>
       <content source="playlists" target="videos" folder="Video Playlists" label="..." icon="..." condition="..." visible="..." />
     </group>
@@ -99,7 +101,7 @@ Defines menu structure, shortcut picker groupings, icon sources, and action over
 
   <dialogs>
     <subdialog buttonID="800" mode="widget1" setfocus="309">
-      <onclose action="menu" menu="{item}.customwidget" condition="widgetType=custom" />
+      <onclose action="menu" menu="{customWidget}" condition="widgetType=custom" />
     </subdialog>
     <subdialog buttonID="801" mode="widget2" setfocus="309" suffix=".2" />
   </dialogs>
@@ -136,7 +138,7 @@ Defines menu structure, shortcut picker groupings, icon sources, and action over
 | `<protect>` | item | - | `type`, `heading`, `message` | Protection rule |
 | `<groupings>` | menus | - | - | Shortcut picker structure |
 | `<group>` | groupings/group | `name`, `label` (unless `flat="true"`) | `condition`, `visible`, `icon`, `flat` | Shortcut group |
-| `<shortcut>` | group | `name`, `label` | `icon`, `type`, `condition`, `visible`, `path`, `browse` | Shortcut option |
+| `<shortcut>` | group | `name`, `label` | `icon`, `type`, `condition`, `visible`, `browse` | Shortcut option |
 | `<action>` | shortcut | - | `primary` | Shortcut action (multiple allowed) |
 | `<path>` | shortcut | - | - | Browse path (for browse mode) |
 | `<content>` | group | `source` | `target`, `path`, `condition`, `visible`, `icon`, `label`, `folder` | Dynamic content |
@@ -285,7 +287,6 @@ Defines background options and groupings.
       <path>$INFO[Window(Home).Property(MovieFanart)]</path>
     </background>
     <group name="nested" label="Nested">...</group>
-    <content source="playlists" target="videos" />
   </group>
 </backgrounds>
 ```
@@ -302,7 +303,6 @@ Defines background options and groupings.
 | `<icon>` | background | - | - | Icon for picker |
 | `<source>` | background | - | `label`, `condition`, `visible`, `icon` | Browse/playlist source. Any `<source>` element shows the source picker. `condition` and `visible` apply only to browse/multi sources; playlist and live-playlist sources read only `label`, `icon`, and the path text |
 | `<group>` | backgrounds/group | `name`, `label` (unless `flat="true"`) | `condition`, `visible`, `icon`, `flat` | Background group |
-| `<content>` | group | `source` | `target`, etc. | Dynamic content |
 
 ### Background Types
 
@@ -542,7 +542,6 @@ Defines templates for generating skin includes. For detailed documentation, see 
 
   <!-- Raw mode template -->
   <template include="UtilityInclude" build="true">
-    <param name="id" default="9000" />
     <controls>
       <control type="group" id="$PARAM[id]" />
     </controls>
@@ -591,7 +590,6 @@ Defines templates for generating skin includes. For detailed documentation, see 
 | `<presetGroup/>` | template | `content` | `condition`, `suffix` | Apply a presetGroup reference |
 | `<propertyGroup/>` | template/items/submenu | `content` | `condition`, `suffix` | Apply property group |
 | `<variableGroup/>` | template/items | `content` | `condition`, `suffix` | Apply variable group |
-| `<param>` | template | `name` | `default` | Parameter (build="true") |
 | `<controls>` | template/submenu | - | - | Control container |
 | `<skinshortcuts>` | controls | - | `include`, `condition`, `wrap`, `insert` | Special tag |
 | `<submenu>` | templates | - | `include`, `level`, `name` | Submenu template |
@@ -707,7 +705,7 @@ For `<content source="...">` elements:
 
 ### Library Targets
 
-`genres`, `moviegenres`, `tvgenres`, `musicgenres`, `years`, `movieyears`, `tvyears`, `studios`, `moviestudios`, `tvstudios`, `tags`, `movietags`, `tvtags`, `actors`, `movieactors`, `tvactors`, `directors`, `moviedirectors`, `tvdirectors`, `artists`, `albums`
+`genres`, `moviegenres`, `tvgenres`, `musicgenres`, `years`, `movieyears`, `tvyears`, `studios`, `moviestudios`, `tvstudios`, `tags`, `movietags`, `tvtags`, `actors`, `movieactors`, `tvactors`, `directors`, `moviedirectors`, `artists`, `albums`
 
 ### Nodes Targets
 

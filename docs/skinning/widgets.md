@@ -143,7 +143,7 @@ Custom widgets let users define their own item list:
 </widget>
 ```
 
-When selected, the dialog opens an item editor for the custom menu.
+When selected, the dialog opens an item editor for the custom menu. Its items are shortcuts: Add makes a blank item to fill with Choose shortcut (401), as in any menu.
 
 ---
 
@@ -315,7 +315,6 @@ The `library` source provides access to library database content (genres, years,
 | `actors`, `movieactors` | Movie actors |
 | `tvactors` | TV show actors |
 | `directors`, `moviedirectors` | Movie directors |
-| `tvdirectors` | TV show directors |
 | `artists` | Music artists |
 | `albums` | Music albums |
 
