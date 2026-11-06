@@ -13,14 +13,20 @@ try:
 except ImportError:
     IN_KODI = False
 
-from ..constants import extract_path_from_action, get_shortcuts_path
 from ..conditions import evaluate_condition, suffix_condition
+from ..constants import (
+    MENUS_FILE,
+    PROPERTIES_FILE,
+    extract_path_from_action,
+    get_shortcuts_path,
+)
+from ..exceptions import ConfigError
 from ..loaders.menu import load_menus
 from ..loaders.property import load_properties
 from ..localize import resolve_label
 from ..log import get_logger
 from ..manager import MenuManager
-from ..models.menu import ContextMenu, MenuItem
+from ..models.menu import ContextMenu, MenuItem, submenu_key
 from ..models.property import PropertySchema
 
 _log = get_logger("Dialog")
@@ -146,38 +152,15 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
         return self.getControl(control_id)  # type: ignore[return-value]
 
     def onInit(self):  # noqa: N802
-        """Load config and items, then display the list and set the window properties."""
+        """Load config and items, then display the list; closes when config cannot be loaded."""
         self._log(f"onInit: shortcuts_path={self.shortcuts_path}, menu_id={self.menu_id}")
         self._window_id = xbmcgui.getCurrentWindowDialogId()
 
-        if self.manager is None:
-            if self._shared_manager:
-                self.manager = self._shared_manager
-            else:
-                self.manager = MenuManager(self.shortcuts_path)
-
-            menu_ids = self.manager.get_menu_ids()
-            self._log(f"Loaded menus: {menu_ids}")
-
-        if self.property_schema is None:
-            if self._shared_schema:
-                self.property_schema = self._shared_schema
-            else:
-                schema_path = Path(self.shortcuts_path) / "properties.xml"
-                self.property_schema = load_properties(schema_path)
-
-        if not self.icon_sources:
-            if self._shared_icon_sources is not None:
-                self.icon_sources = self._shared_icon_sources
-                self.context_menu = self._shared_context_menu or ContextMenu()
-                if self._shared_subdialogs:
-                    self._subdialogs = {sd.button_id: sd for sd in self._shared_subdialogs}
-            else:
-                menus_path = Path(self.shortcuts_path) / "menus.xml"
-                menu_config = load_menus(menus_path)
-                self.icon_sources = menu_config.icon_sources
-                self.context_menu = menu_config.context_menu
-                self._subdialogs = {sd.button_id: sd for sd in menu_config.subdialogs}
+        try:
+            self._load_config()
+        except ConfigError:
+            self.close()
+            return
 
         if not self.dialog_mode and self.manager:
             menu = self.manager.working.get(self.menu_id)
@@ -202,6 +185,37 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
                 self._log(f"Set focus to control {self._setfocus}")
             except RuntimeError:
                 pass
+
+    def _load_config(self) -> None:
+        """Load the manager, property schema and menus.xml settings, or take the parent's."""
+        if self.manager is None:
+            if self._shared_manager:
+                self.manager = self._shared_manager
+            else:
+                self.manager = MenuManager(self.shortcuts_path)
+
+            menu_ids = self.manager.get_menu_ids()
+            self._log(f"Loaded menus: {menu_ids}")
+
+        if self.property_schema is None:
+            if self._shared_schema:
+                self.property_schema = self._shared_schema
+            else:
+                schema_path = Path(self.shortcuts_path) / PROPERTIES_FILE
+                self.property_schema = load_properties(schema_path)
+
+        if not self.icon_sources:
+            if self._shared_icon_sources is not None:
+                self.icon_sources = self._shared_icon_sources
+                self.context_menu = self._shared_context_menu or ContextMenu()
+                if self._shared_subdialogs:
+                    self._subdialogs = {sd.button_id: sd for sd in self._shared_subdialogs}
+            else:
+                menus_path = Path(self.shortcuts_path) / MENUS_FILE
+                menu_config = load_menus(menus_path)
+                self.icon_sources = menu_config.icon_sources
+                self.context_menu = menu_config.context_menu
+                self._subdialogs = {sd.button_id: sd for sd in menu_config.subdialogs}
 
     def _mirror_to_home(self) -> None:
         """Mirror the dialog mode and suffix to Home, for a native dialog over this one."""
@@ -371,7 +385,7 @@ class DialogBaseMixin(xbmcgui.WindowXMLDialog):
                 if item.submenu
                 else None
             )
-            instance = self.manager.working.get(self.manager.submenu_key(self.menu_id, item.name))
+            instance = self.manager.working.get(submenu_key(self.menu_id, item.name))
             effective = instance if instance is not None else template
             if effective and any(not entry.is_placeholder for entry in effective.items):
                 stamp("hasSubmenu", "true")

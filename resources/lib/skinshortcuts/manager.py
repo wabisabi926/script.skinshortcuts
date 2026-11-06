@@ -11,11 +11,11 @@ from .conditions import check_visible
 from .config import SkinConfig
 from .localize import resolve_label
 from .log import get_logger
-from .models.menu import Action, Menu, MenuItem
+from .models.menu import Action, Menu, MenuItem, submenu_key
 from .playlists import cleanup_orphan_playlists
 from .userdata import (
-    MenuItemDiff,
     MenuDiff,
+    MenuItemDiff,
     UserData,
     merge_items,
     save_userdata,
@@ -105,16 +105,11 @@ class MenuManager:
             full.insert(at, item)
         return full
 
-    def _ensure_working_menu(self, menu_id: str) -> Menu:
-        """Ensure menu exists in working copy, create if needed."""
+    def ensure_working_menu(self, menu_id: str) -> Menu:
+        """Ensure menu exists in working copy, created as an empty submenu if missing."""
         if menu_id not in self.working:
             self.working[menu_id] = Menu(name=menu_id, is_submenu=True)
         return self.working[menu_id]
-
-    @staticmethod
-    def submenu_key(parent_menu_name: str, item_name: str) -> str:
-        """Per-item submenu working key for a given item."""
-        return f"{parent_menu_name}/{item_name}"
 
     @staticmethod
     def submenu_template(item: MenuItem) -> str:
@@ -123,7 +118,7 @@ class MenuManager:
 
     def ensure_item_submenu(self, parent_menu_name: str, item: MenuItem) -> Menu:
         """Ensure the item has its own submenu, seeded from the template on first access."""
-        key = self.submenu_key(parent_menu_name, item.name)
+        key = submenu_key(parent_menu_name, item.name)
         if key not in self.working:
             template_name = self.submenu_template(item)
             default = self.config.get_default_menu(template_name)
@@ -138,7 +133,7 @@ class MenuManager:
 
     def drop_item_submenu(self, parent_menu_name: str, item_name: str) -> None:
         """Discard the per-item submenu so the next access reseeds from the template."""
-        key = self.submenu_key(parent_menu_name, item_name)
+        key = submenu_key(parent_menu_name, item_name)
         self._hidden.pop(key, None)
         if key in self.working:
             del self.working[key]
@@ -196,8 +191,8 @@ class MenuManager:
         label: str = "",
         item: MenuItem | None = None,
     ) -> MenuItem:
-        """Add a new item to a menu."""
-        menu = self._ensure_working_menu(menu_id)
+        """Add item to menu after the index or at end; one built unlabeled is a placeholder."""
+        menu = self.ensure_working_menu(menu_id)
 
         if item:
             new_item = item
@@ -236,7 +231,7 @@ class MenuManager:
 
     def restore_item(self, menu_id: str, item: MenuItem) -> bool:
         """Restore a deleted item, dropping any empty placeholder."""
-        menu = self._ensure_working_menu(menu_id)
+        menu = self.ensure_working_menu(menu_id)
 
         menu.items[:] = [i for i in menu.items if not (i.is_placeholder and not i.actions)]
 
@@ -312,7 +307,7 @@ class MenuManager:
             for item in menu.items:
                 template_name = self.submenu_template(item)
                 if self.config.get_default_menu(template_name):
-                    submenu_refs.append(self.submenu_key(menu_id, item.name))
+                    submenu_refs.append(submenu_key(menu_id, item.name))
 
         changed = self.reset_menu(menu_id)
 
@@ -326,9 +321,7 @@ class MenuManager:
         """Reset every <submenu> menu and its per-item copies; menus with no skin default stay."""
         changed = False
         for menu_id in list(self.working):
-            default = self.config.get_default_menu(menu_id)
-            if default is None and "/" in menu_id:
-                default = self._template_for_submenu_key(menu_id)
+            default = self._default_menu(menu_id)
             if default is not None and default.is_submenu and self.reset_menu(menu_id):
                 changed = True
         return changed
@@ -470,7 +463,7 @@ class MenuManager:
         referenced_menus: set[str] = set()
         for menu in self.working.values():
             for item in menu.items:
-                referenced_menus.add(self.submenu_key(menu.name, item.name))
+                referenced_menus.add(submenu_key(menu.name, item.name))
                 for key, value in item.properties.items():
                     if key.startswith("customWidget") and value:
                         referenced_menus.add(value)

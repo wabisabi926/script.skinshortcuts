@@ -28,7 +28,7 @@ Rules that span several modules and that no single file shows. Each section name
 
 ## Per-item submenus
 
-- Every item of a root menu can have its own submenu, keyed `{menu}/{item}` (`MenuManager.submenu_key`). The key is used as a menu name in `SkinConfig.menus`, in the manager's `working` and in userdata.
+- Every item of a root menu can have its own submenu, keyed `{menu}/{item}` (`submenu_key` in `models/menu.py`). The key is used as a menu name in `SkinConfig.menus`, in the manager's `working` and in userdata.
 - A menus.xml `<submenu>` is a template, not a menu the user edits. An item links one through `MenuItem.submenu`: the `submenu` attribute, or the shortcut picker when the picked shortcut's name matches a `<submenu>` ([auto-link](../skinning/menus.md#auto-link-by-shortcut-name)).
 - `SkinConfig.load` builds each instance by merging the template with the userdata diff stored under the item's key, and records the template in `Menu.template_origin`. An item with no template but a stored diff gets an instance built from the diff alone. A `<submenu>` that any item links is left out of `config.menus`; one that no item links stays in as an ordinary flat menu.
 - The manager seeds an instance from the template when the dialog opens an item that has none yet (`ensure_item_submenu`), discards it when the item's template changes (`drop_item_submenu`), and diffs it against the template on save.
@@ -48,7 +48,7 @@ Rules that span several modules and that no single file shows. Each section name
 
 - A slot is a numbered copy of a property: `widget` is the base slot, `widget.2` slot 2, and every sibling takes the same tail (`widgetPath.2`). Slots let one item hold several widgets or backgrounds.
 - In the dialog, a subdialog with `suffix=".2"` opens a child on the same menu with that `property_suffix`. A property button with `suffix="true"` appends it to its property name and its `requires` check. Fallback rules, context menu rows and a suffixed button's options suffix their conditions too (`suffix_condition`).
-- In templates, an output with a suffix applies it to every condition (`suffix_condition`) and every `from` source (`suffix_property`) the template reads. Built-in names (`NO_SUFFIX_PROPERTIES` in conditions.py), names that already carry a slot, and `{NOSUFFIX:...}` content from a `nosuffix` expression stay as written.
+- In templates, an output with a suffix applies it to every condition (`suffix_condition`) and every `from` source (`suffix_property`) the template reads. Built-in names (`NO_SUFFIX_PROPERTIES` in conditions.py), names that already carry a slot, and `{NOSUFFIX:...}` content from a `noSuffix` expression stay as written.
 - `slot_suffixes` lists the slots an item holds; custom widget includes and `<value iterate>` use it.
 
 Skinner view: [Suffix Transforms](../skinning/properties.md#suffix-transforms).

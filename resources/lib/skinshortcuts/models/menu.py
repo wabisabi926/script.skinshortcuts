@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-
-from .override import Override
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from .override import Override
 
 try:
     import xbmc
@@ -119,6 +119,11 @@ def display_action(actions: list[Action]) -> str:
         if not act.condition:
             last = act.action
     return last or (actions[0].action if actions else "")
+
+
+def submenu_key(parent_menu_name: str, item_name: str) -> str:
+    """Per-item submenu key for a given item, its menu name in config, the manager and userdata."""
+    return f"{parent_menu_name}/{item_name}"
 
 
 @dataclass

@@ -6,11 +6,11 @@
 
 `TemplateBuilder.build`:
 
-1. For each `<template>` and each of its outputs (`Template.get_outputs`: the declared outputs, else one from `include` and `idprefix`), it gets or creates the include `skinshortcuts-template-{include}`. Outputs that share a name build into the same include.
+1. For each `<template>` and each of its outputs (`Template.get_outputs`: the declared outputs, else one from `include` and `idPrefix`), it gets or creates the include `skinshortcuts-template-{include}`. Outputs that share a name build into the same include.
 2. A raw template (`build="true"`) builds through `_build_raw_template`, every other one through `_build_template_into`.
 3. Each templates.xml `<submenu>` builds into `skinshortcuts-{include}` (`_build_submenu_template`).
 4. Every fixed variable name a template declares, directly or through a variableGroup, gets an empty placeholder variable when no item built it (`_add_placeholder_variables`), so a skin naming it still resolves.
-5. Variables are emitted first, then includes. Includes from a `templateonly="true"` template are left out, as are `templateonly="auto"` ones no menu item property assigns with `$INCLUDE[skinshortcuts-template-{include}]`. An include that ends up empty gets a `<description>` saying no items matched.
+5. Variables are emitted first, then includes. Includes from a `templateOnly="true"` template are left out, as are `templateOnly="auto"` ones no menu item property assigns with `$INCLUDE[skinshortcuts-template-{include}]`. An include that ends up empty gets a `<description>` saying no items matched.
 
 ## Menu templates
 
@@ -25,7 +25,7 @@
 `_build_context` builds the dict of values the substitutions read, in this order:
 
 1. The menu's default properties under the item's own properties.
-2. Built-ins: `index`, `name`, `menu`, `idprefix`, `id`, `suffix`, `label`, `label2`, `icon`, `visible`, `action`, `path`, `submenuVisibility`. These overwrite item properties of the same name.
+2. Built-ins: `index`, `name`, `menu`, `idPrefix`, `id`, `suffix`, `label`, `label2`, `icon`, `visible`, `action`, `path`, `submenuVisibility`. These overwrite item properties of the same name.
 3. properties.xml fallbacks, for each property still unset in each slot the item uses.
 4. The template's `<property>` elements, first match per name.
 5. The template's `<var>` elements, first matching value.

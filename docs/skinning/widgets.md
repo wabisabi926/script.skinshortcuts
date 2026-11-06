@@ -412,8 +412,8 @@ Configure via [subdialogs](menus.md#subdialogs) in `menus.xml`:
 
 ```xml
 <dialogs>
-  <subdialog buttonID="800" mode="widget1" setfocus="309" />
-  <subdialog buttonID="801" mode="widget2" setfocus="309" suffix=".2" />
+  <subdialog buttonID="800" mode="widget1" setFocus="309" />
+  <subdialog buttonID="801" mode="widget2" setFocus="309" suffix=".2" />
 </dialogs>
 ```
 
@@ -479,7 +479,7 @@ A widget submenu tied to a parent menu item via the subdialog system:
 </submenu>
 
 <dialogs>
-  <subdialog buttonID="406" mode="widgets" setfocus="309">
+  <subdialog buttonID="406" mode="widgets" setFocus="309">
     <onclose action="menu" menu="{item}.widgets" />
   </subdialog>
 </dialogs>
@@ -582,7 +582,7 @@ A blank label is stored as a single space rather than an empty value, so it is s
 
 The prompt is skipped for custom widgets and inside widget menus, where the item label already drives `widgetLabel`.
 
-`rename` only applies to `type="widget"` buttons. On any other type it is ignored and logged as an error.
+`rename` only applies to `type="widget"` buttons. On any other type it is ignored, with an [error notification](troubleshooting.md#error-notifications).
 
 ### Multiple Widget Slots
 
@@ -598,8 +598,8 @@ For additional widget slots, use [subdialogs](menus.md#subdialogs) with a suffix
 ```xml
 <!-- menus.xml -->
 <dialogs>
-  <subdialog buttonID="800" mode="widget1" setfocus="309" />
-  <subdialog buttonID="801" mode="widget2" setfocus="309" suffix=".2" />
+  <subdialog buttonID="800" mode="widget1" setFocus="309" />
+  <subdialog buttonID="801" mode="widget2" setFocus="309" suffix=".2" />
 </dialogs>
 ```
 

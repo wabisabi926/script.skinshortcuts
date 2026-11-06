@@ -8,6 +8,14 @@ from itertools import chain
 from pathlib import Path
 
 from .builders.includes import IncludesBuilder
+from .constants import (
+    BACKGROUNDS_FILE,
+    MENUS_FILE,
+    PROPERTIES_FILE,
+    TEMPLATES_FILE,
+    VIEWS_FILE,
+    WIDGETS_FILE,
+)
 from .loaders.background import load_backgrounds
 from .loaders.base import iter_nested
 from .loaders.menu import load_menus
@@ -17,7 +25,7 @@ from .loaders.views import load_views
 from .loaders.widget import load_widgets
 from .migrations import apply_overrides
 from .models.background import Background, BackgroundConfig, BackgroundGroup
-from .models.menu import IconOverrides, Menu, MenuItem, SubDialog
+from .models.menu import IconOverrides, Menu, MenuItem, SubDialog, submenu_key
 from .models.override import Override
 from .models.property import PropertySchema
 from .models.template import TemplateSchema
@@ -85,14 +93,14 @@ class SkinConfig:
         """Load configuration from shortcuts directory, merged with userdata unless skipped."""
         path = Path(shortcuts_path)
 
-        menu_config = load_menus(path / "menus.xml")
-        widgets = load_widgets(path / "widgets.xml")
+        menu_config = load_menus(path / MENUS_FILE)
+        widgets = load_widgets(path / WIDGETS_FILE)
         backgrounds = load_backgrounds(
-            path / "backgrounds.xml", icon_overrides=menu_config.icon_overrides
+            path / BACKGROUNDS_FILE, icon_overrides=menu_config.icon_overrides
         )
-        templates = load_templates(path / "templates.xml")
-        property_schema = load_properties(path / "properties.xml")
-        views = load_views(path / "views.xml")
+        templates = load_templates(path / TEMPLATES_FILE)
+        property_schema = load_properties(path / PROPERTIES_FILE)
+        views = load_views(path / VIEWS_FILE)
 
         userdata = load_userdata(userdata_path) if load_user else UserData()
         migrated = (
@@ -137,7 +145,7 @@ class SkinConfig:
             for item in merged.items:
                 template_name = item.submenu or ""
                 template = template_map.get(template_name) if template_name else None
-                key = f"{merged.name}/{item.name}"
+                key = submenu_key(merged.name, item.name)
                 instance_diff = userdata.menus.get(key)
                 if template is None:
                     if instance_diff is None:

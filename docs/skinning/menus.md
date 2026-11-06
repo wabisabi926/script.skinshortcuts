@@ -71,14 +71,14 @@ Defines a standalone menu that generates an include.
 |-----------|----------|-------------|
 | `name` | Yes | Unique identifier. Generated include is `skinshortcuts-{name}` |
 | `container` | No | List control ID for visibility conditions |
-| `controltype` | No | Output as `<control type="X">` instead of `<item>` (e.g., `button`) |
-| `id` | No | Starting control ID for `controltype` menus (default: 1) |
+| `controlType` | No | Output as `<control type="X">` instead of `<item>` (e.g., `button`) |
+| `id` | No | Starting control ID for `controlType` menus (default: 1) |
 | `icons` | No | `false` omits `<icon>` from every item in the menu |
 | `build` | No | Build mode: `true` (default) or `auto`. When `auto`, only built if another menu item's action matches the `action` attribute |
 | `action` | No | Action string for `build="auto"`. Menu is built when any item in another menu has this action |
 | `type` | No | Menu type. `widgets` puts the dialog in [widget mode](widgets.md#widget-menus) |
 | `submenuPath` | No | `all` emits the numbered `submenuPath.N` tail for widget submenus under this menu (see [Built-in Properties](builtin-properties.md#submenu-widget-path)) |
-| `template_only` | No | `submenu` skips the combined `skinshortcuts-{name}-submenu` include for this menu. Distinct from `standalone`, which controls the per-template include on a `<submenu>` |
+| `templateOnly` | No | `submenu` skips the combined `skinshortcuts-{name}-submenu` include for this menu. Distinct from `standalone`, which controls the per-template include on a `<submenu>` |
 
 **Conditional building:** Use `build="auto"` with `action` for menus that serve specific windows (e.g., hub windows). The menu include is only generated when a menu item elsewhere uses the matching action:
 
@@ -92,9 +92,9 @@ If no item in any other menu has `ActivateWindow(1111)` as its action, `skinshor
 
 **Container binding:** When `container` is set, visibility conditions are generated for submenus and widgets based on focused item position.
 
-**Control type menus:** When `controltype="button"`, items are output as `<control type="button">` elements instead of `<item>` elements. Use this for menus displayed in grouplists where you need individual button controls. Properties are not included in control output.
+**Control type menus:** When `controlType="button"`, items are output as `<control type="button">` elements instead of `<item>` elements. Use this for menus displayed in grouplists where you need individual button controls. Properties are not included in control output.
 
-**Control IDs:** Use `id` to set the starting control ID for `controltype` menus. For example, `id="8000"` outputs controls with IDs 8000, 8001, 8002, etc. Ignored for regular item menus.
+**Control IDs:** Use `id` to set the starting control ID for `controlType` menus. For example, `id="8000"` outputs controls with IDs 8000, 8001, 8002, etc. Ignored for regular item menus.
 
 ---
 
@@ -135,7 +135,7 @@ In addition to the attributes shared with `<menu>`:
 |-----------|---------|-------------|
 | `standalone` | `true` | When `false`, the per-template `skinshortcuts-{name}` include is not emitted. Submenu items still appear in the combined `skinshortcuts-{menu}-submenu` include. Use this when your skin only consumes submenus through the combined include and you want a cleaner generated output. |
 
-`build`, `action` and `template_only` are only acted on for `<menu>`, so setting them here does nothing.
+`build`, `action` and `templateOnly` are only acted on for `<menu>`, so setting them here does nothing.
 
 Link a submenu to an item:
 
@@ -210,7 +210,7 @@ Defines a menu item.
 
 | Attribute/Element | Where Applied | Purpose |
 |-------------------|---------------|---------|
-| `visible="..."` (attribute on `<item>`) | Config load (build time) | Whether the item applies to this system at all, such as an add-on being installed (`System.HasAddon(...)`), a platform or profiles. When it fails the item is left out of both the dialog and the generated include. A change in its result is picked up at the next startup build |
+| `visible="..."` (attribute on `<item>`) | Config load (build time) | Whether the item applies to this system at all, such as an add-on being installed (`System.HasAddon(...)`), a platform or profiles. When it fails the item is left out of both the dialog and the generated include. A change in its result is picked up at every `buildxml` call |
 | `<visible>` (child element) | Generated include | Whether to show the item right now, such as a disc being in the drive. Output as `<visible>` in the include file, so Kodi re-checks it as things change, and the item stays editable in the dialog |
 
 ### Multiple Visibility Conditions
@@ -294,7 +294,7 @@ Menu-level defaults apply to all items in the menu.
 |---------|-------------|
 | `<action>` | Default actions for all items |
 | `<property>` | Default property values |
-| `<skinshortcuts>` | Include reference inserted into item output (works for both regular item menus and controltype menus) |
+| `<skinshortcuts>` | Include reference inserted into item output (works for both regular item menus and controlType menus) |
 
 The `<defaults>` element also supports `widget` and `background` attributes as shorthand. An item that names no widget of its own gets the same widget properties as if it named the default one; backgrounds work the same way. A `<property>` on the item keeps its value. A widget or background value set in `<defaults>`, such as its path or label, applies only while the item uses the default one:
 
@@ -320,7 +320,7 @@ The `<defaults>` element also supports `widget` and `background` attributes as s
 
 ### Include References
 
-Insert include references into the output (works for both regular item menus and controltype menus):
+Insert include references into the output (works for both regular item menus and controlType menus):
 
 ```xml
 <defaults>
@@ -750,10 +750,10 @@ Define subdialogs triggered by button clicks. Used for multi-widget support.
 
 ```xml
 <dialogs>
-  <subdialog buttonID="800" mode="widget1" setfocus="309">
+  <subdialog buttonID="800" mode="widget1" setFocus="309">
     <onclose condition="widgetType=custom" action="menu" menu="{customWidget}" />
   </subdialog>
-  <subdialog buttonID="801" mode="widget2" setfocus="309" suffix=".2">
+  <subdialog buttonID="801" mode="widget2" setFocus="309" suffix=".2">
     <onclose condition="widgetType.2=custom" action="menu" menu="{customWidget.2}" />
   </subdialog>
 </dialogs>
@@ -766,7 +766,7 @@ Define subdialogs triggered by button clicks. Used for multi-widget support.
 | `buttonID` | Yes | Button ID that triggers this subdialog |
 | `mode` | No | Value set in `Window.Property(skinshortcuts-dialog)`. Required unless `menu` is set or at least one `<onclose>` action is present |
 | `menu` | No | Menu to open directly without mode change. Supports `{item}` and `{customWidget}` placeholders |
-| `setfocus` | No | Control ID to focus when subdialog opens |
+| `setFocus` | No | Control ID to focus when subdialog opens |
 | `suffix` | No | Property suffix for widget slots (e.g., `.2`). Set in `Window.Property(skinshortcuts-suffix)` |
 
 **Direct menu opening:** Use `menu` without `mode` to open a custom widget menu directly:
@@ -878,14 +878,14 @@ The context action (`C` on a keyboard, the menu button on a remote) opens a menu
 <contextmenu>true</contextmenu>
 ```
 
-Default `true` when the `<contextmenu>` element is absent. Set its text to `false` to disable it. Any other text is treated as `true` and logged.
+Default `true` when the `<contextmenu>` element is absent. Set its text to `false` to disable it. Any other text is treated as `true`, with an [error notification](troubleshooting.md#error-notifications).
 
 ### Where It Opens
 
-By default the context action works anywhere in the management dialog. Set `enableon` to a comma separated list of control IDs to limit it to those controls when focused:
+By default the context action works anywhere in the management dialog. Set `enableOn` to a comma separated list of control IDs to limit it to those controls when focused:
 
 ```xml
-<contextmenu enableon="211,212" />
+<contextmenu enableOn="211,212" />
 ```
 
 List every control the menu should open on, including the ones a subdialog focuses. A value with no usable control IDs is ignored, and the menu opens anywhere.
@@ -897,7 +897,7 @@ With no `<button>` children, the menu shows the built-in rows: Edit Label, Edit 
 Add `<button>` children to replace that set. Each row clicks the dialog button with that ID, so it reaches built-in buttons, [property buttons](properties.md#button-mappings) and [subdialogs](management-dialog.md#subdialogs) alike, whether or not your dialog draws that button as a control:
 
 ```xml
-<contextmenu enableon="211">
+<contextmenu enableOn="211">
   <button id="305" label="$ADDON[script.skinshortcuts 32171]" />
   <button id="307" label="$ADDON[script.skinshortcuts 32172]" />
   <button id="306" label="$ADDON[script.skinshortcuts 32173]" />
@@ -927,7 +927,7 @@ In a subdialog, `condition` reads the item the subdialog is editing and follows 
 | Setting | Default | Overridden by |
 |---------|---------|---------------|
 | On or off | On | Element text `false` |
-| Where it opens | Anywhere in the dialog | `enableon` |
+| Where it opens | Anywhere in the dialog | `enableOn` |
 | Rows | Built-in five | Any `<button>` children |
 | Row label | Script label for built-in IDs, otherwise none | `label` |
 

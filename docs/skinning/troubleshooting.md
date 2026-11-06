@@ -21,7 +21,21 @@ Enable either, reproduce the problem, then read the log.
 
 | Notification | Cause | Fix |
 |---|---|---|
-| Shortcut / Widget / Background Group Error: group missing 'name' | A group in the picker groupings has no `name` attribute | Add `name="..."` to the group |
+| Menu / Widget / Background / Property / Template / View Error: '\<file>' could not be loaded | The file is not valid XML, has the wrong root element, or cannot be read; nothing is built until it is fixed | Fix what the log line names |
+| \<Feature> Error: '\<name>' missing \<field>, or \<element> missing '\<field>' | A definition has no attribute or element it needs; it is skipped | Add what the log line names |
+| Property Button Error: '\<id>' is not a control id | A `<button>` in `properties.xml` has an id that is not a number; it is skipped | Use the id of the dialog control |
+| Property Button Error: '\<id>' rename needs a widget | A `<button rename="true">` has a type other than `widget`; rename is ignored | Remove `rename`, or use it on a widget button |
+| Context Menu Error: '\<value>' is not true or false | `<contextmenu>` holds something other than `true` or `false`; it is treated as `true` | Write `true` or `false` |
+| Context Menu Error: '\<value>' is not a control id / enableOn has no control id | A `<button id>` or an `enableOn` entry in `<contextmenu>` is not a number; it is skipped, and with no `enableOn` id left the context menu opens on every control | Use numeric control ids |
+| Subdialog Error: '\<id>' is not a control id / '\<id>' does nothing | A `<subdialog>` has a `buttonID` that is not a number, or no `mode`, `menu` or `<onclose>`, and is skipped; or a `setFocus` that is not a number, which is ignored | Use a numeric `buttonID` or `setFocus`, or add `mode="..."` |
+| Shortcut Error: '\<name>' has no action | A `<shortcut>` has no `<action>` and no browse `<path>`; it is skipped | Add an `<action>` |
+| Background Error: '\<name>' has an empty source | A `<source>` in a background has no path; that source is skipped | Write the path as its text |
+| Property Error: include '\<name>' not defined | An `<include content="...">` in `properties.xml` names no include in `<includes>`; nothing is included | Define the include, or correct the name |
+| View Error: '\<name>' lists undefined view '\<id>' | A content rule's `<views>` lists an id no `<view>` defines; that id is skipped | Use a defined view id |
+| Override Error: '\<action>' has no action | An `<action replace="...">` in the `menus.xml` overrides has no text; it is skipped | Write the new action as its text |
+| Override Error: '\<icon>' has no icon / has a relative path | An `<icon>` in `<overrides><icons>` has no path, or a relative path while `<icons>` has no `<source>`; it is skipped | Write the icon path, add `<source>`, or use a full path |
+| View Error: '\<name>' lists no defined view | No id in a content rule's `<views>` is a defined view; the rule is skipped | List the ids of defined views |
+| View Error: '\<name>' library view / plugin view not defined | A content rule's `library` or `plugin` default is not a defined view; a bad `library` skips the rule, a bad `plugin` is ignored | Use a defined view id |
 | Shortcut / Widget / Background Group Error: '\<name>' missing label | A group has a name but no `label`, required unless the group is `flat` | Add `label="..."`, or mark it `flat="true"` |
 | Background Error: '\<name>' has path and source | A browse or multi background defines both; the fixed path is ignored | Keep one: a fixed `<path>` or a dynamic `<source>` |
 | Background Error: '\<group>' uses \<content> | backgrounds.xml has a `<content>` element, in a group or at the root (named `backgrounds`); it is skipped | Use a playlist or browse background with `<source>` instead |
@@ -40,5 +54,16 @@ Enable either, reproduce the problem, then read the log.
 | Expression Error: $IF clause has no THEN | A `$IF[...]` clause has no uppercase `THEN`, often a lowercase or misspelled keyword | Write `THEN`, `ELIF` and `ELSE` in uppercase |
 | Menu / Widget / Background / View Error: '\<name>' defined twice | Two menus, widgets, backgrounds or views share a name or id; only one can be reached | Give each a unique name |
 | Menu Error: item '\<name>' defined twice in menu '\<menu>' | Two items in one menu share a name | Give each item a unique name |
+| Property / Property Button / Template / Items Template Error: [\<kind>] '\<name>' defined twice | Two definitions of one kind in `properties.xml` or `templates.xml` share a name or id, property names matching in any case; the first is used | Give each a unique name |
 | View Error: content '\<name>' defined twice | Two content rules in `views.xml` share a name | Give each rule a unique name |
 | Template / Items Template / Submenu Template Error: '\<name>' defined twice | A `<var>` shares its name with another `<var>`, or with `<property>` elements, in the same template, property group, items or submenu template; the first definition is used | Keep one `<var>`, or only `<property>` elements |
+| Override Error: '\<name>' replaces itself / points at undefined '\<name>' / names a picker-owned key / is still defined | An entry in an `<overrides>` block would put user data somewhere the skin cannot use; it is ignored | See [What Is Refused](overrides.md#what-is-refused) |
+
+## Renamed names
+
+A log line saying an element "uses a deprecated attribute" points at an attribute that was renamed. The old name still works for now; a later version stops reading it.
+
+| Old name | New name |
+|---|---|
+| `template_only` | `templateOnly` |
+| `title` on a properties.xml `<button>` | `heading` |

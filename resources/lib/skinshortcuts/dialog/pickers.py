@@ -17,17 +17,21 @@ except ImportError:
     IN_KODI = False
 
 
+from ..conditions import check_visible, evaluate_condition
 from ..constants import (
     ADDONS_SOURCE_MAP,
+    MENUS_FILE,
     TARGET_MAP,
     WINDOW_MAP,
     extract_path_from_action,
     extract_window_from_action,
 )
-from ..conditions import check_visible, evaluate_condition
 from ..loaders.menu import load_groupings
 from ..localize import LANGUAGE, number_label, resolve_label
 from ..log import get_logger
+from ..models.background import Background, BackgroundGroup, BackgroundType
+from ..models.menu import Action, Content, IconOverrides, Input, MenuItem, Shortcut, ShortcutGroup
+from ..models.widget import Widget, WidgetGroup
 from ..playlists import (
     SORT_OPTIONS,
     SortOption,
@@ -37,9 +41,6 @@ from ..playlists import (
     save_playlist,
     unpack_multipath,
 )
-from ..models.background import Background, BackgroundGroup, BackgroundType
-from ..models.menu import Action, Content, IconOverrides, Input, MenuItem, Shortcut, ShortcutGroup
-from ..models.widget import Widget, WidgetGroup
 from ..providers.browse import get_browse_provider
 from ..providers.content import ContentProvider, library_node_type
 
@@ -259,7 +260,7 @@ class PickersMixin:
         if not item:
             return
 
-        menus_path = Path(self.shortcuts_path) / "menus.xml"
+        menus_path = Path(self.shortcuts_path) / MENUS_FILE
         groups = load_groupings(menus_path, self.menu_id)
 
         if not groups:
@@ -417,6 +418,7 @@ class PickersMixin:
         items: list[WidgetGroup | Widget | Content],
         item_props: dict[str, str],
         slot: str = "",
+        title: str = "",
     ) -> Widget | None | Literal[False]:
         """Pick a widget from groupings. False when the user picks "None"."""
         current_widget = item_props.get(slot, "")
@@ -425,7 +427,7 @@ class PickersMixin:
         result = self._pick_from_hierarchy(
             items,
             item_props,
-            title=LANGUAGE(32044),
+            title=title or LANGUAGE(32044),
             leaf_types=(Widget,),
             group_types=(WidgetGroup,),
             default_leaf_icon="DefaultAddonNone.png",
@@ -1118,6 +1120,7 @@ class PickersMixin:
         item_props: dict[str, str],
         current_value: str = "",
         positions: dict[str, int] | None = None,
+        title: str = "",
     ) -> Background | None | Literal[False]:
         """Pick a background from groupings. False when the user picks "None"."""
         if not self.manager:
@@ -1131,7 +1134,7 @@ class PickersMixin:
         return self._pick_from_hierarchy(
             groupings,
             item_props,
-            title=LANGUAGE(32045),
+            title=title or LANGUAGE(32045),
             leaf_types=(Background,),
             group_types=(BackgroundGroup,),
             default_leaf_icon="DefaultPicture.png",
